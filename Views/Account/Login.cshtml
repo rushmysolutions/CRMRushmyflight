@@ -1,0 +1,39 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Login";
+    Layout = "_LayoutLogin";
+}
+
+<div class="login-card">
+    <div class="login-brand">
+        <span class="brand-mark">RM</span>
+        <div>
+            <h1>Rush My Bookings</h1>
+            <p>Sign in with your CRM account</p>
+        </div>
+    </div>
+
+    <form asp-action="Login" method="post">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+        <label asp-for="Login"></label>
+        <input asp-for="Login" autocomplete="username" placeholder="Username or email" />
+
+        <label asp-for="Password"></label>
+        <input asp-for="Password" autocomplete="current-password" placeholder="Password" />
+
+        <label class="remember">
+            <input asp-for="RememberMe" />
+            <span asp-for="RememberMe"></span>
+        </label>
+
+        <button type="submit" class="primary login-btn">Sign in</button>
+    </form>
+
+    <p class="login-hint"> username or email and password.</p>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

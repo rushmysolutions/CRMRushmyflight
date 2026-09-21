@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Rush My Bookings CRM</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="brand-mark">RM</span>
+                <div>
+                    <h1>Rush My Bookings</h1>
+                    <p>Travel CRM</p>
+                </div>
+            </div>
+            <nav>
+                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "dashboard" ? "active" : "")"
+                   asp-controller="Home" asp-action="Index">Dashboard</a>
+                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "bookings" ? "active" : "")"
+                   asp-controller="Bookings" asp-action="Index">Bookings</a>
+                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "bookings-create" ? "active" : "")"
+                   asp-controller="Bookings" asp-action="Create">Create Booking</a>
+                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
+                   asp-controller="Agents" asp-action="Index">Agents</a>
+                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
+                   asp-controller="Agents" asp-action="AgentManagement">Agent Management</a>
+                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
+                   asp-controller="Home" asp-action="NotificationManagement">Notification Management</a>
+                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
+                   asp-controller="Customer" asp-action="CustomerManagement">Customer Services</a>
+
+            </nav>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <div class="user-panel">
+                    <div class="user-name">@User.Identity.Name</div>
+                    <div class="user-role">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</div>
+                    <form asp-controller="Account" asp-action="Logout" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="logout-btn">Sign out</button>
+                    </form>
+                </div>
+            }
+            @if (ViewBag.DatabaseConnected is bool connected)
+            {
+                <div class="db-status @(connected ? "ok" : "error")">
+                    Database: @(connected ? "Connected" : "Disconnected")
+                </div>
+            }
+        </aside>
+        <main class="content">
+            @RenderBody()
+        </main>
+    </div>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

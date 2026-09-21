@@ -1,0 +1,408 @@
+@model BookingDetail
+@{
+    ViewData["Title"] = "View Booking";
+    ViewData["ActiveNav"] = "bookings";
+    var uploadsBase = Url.Content("~/uploads/bookings/");
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <a asp-action="Index">All Booking(s)</a>
+    <span>/</span>
+    <span>View Booking</span>
+</nav>
+
+@if (TempData["UploadSuccess"] is string uploadSuccess)
+{
+    <div class="success-alert">@uploadSuccess</div>
+}
+@if (TempData["UploadError"] is string uploadError)
+{
+    <div class="alert">@uploadError</div>
+}
+@if (TempData["CommentError"] is string commentError)
+{
+    <div class="alert">@commentError</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>View Booking</h2>
+        <p>@(Model.ReferenceNo ?? "Booking") · @(Model.TypeName ?? "")</p>
+    </div>
+    <div class="filters">
+        <a class="btn" asp-action="Index">Back to List</a>
+        <a class="btn primary" asp-action="Edit" asp-route-id="@Model.BookId">Edit</a>
+    </div>
+</header>
+
+<div class="booking-form view-booking">
+    <section class="form-section">
+        <header class="form-section-header">Booking Type</header>
+        <div class="form-grid">
+            <div class="view-field">
+                <label>Booking Type</label>
+                <div class="view-value">@FormatHelper.Display(Model.TypeName)</div>
+            </div>
+            <div class="view-field">
+                <label>Booking Reference No</label>
+                <div class="view-value ref-readonly">@FormatHelper.Display(Model.ReferenceNo)</div>
+            </div>
+            <div class="view-field">
+                <label>Language</label>
+                <div class="view-value">@FormatHelper.LanguageName(Model.BookingLang)</div>
+            </div>
+            <div class="view-field span-2">
+                <label>Custom Email Subject</label>
+                <div class="view-value">@FormatHelper.Display(Model.CustomEmailSubject)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Flight Information</header>
+        <div class="view-field">
+            <label>PNR</label>
+            <div class="view-value view-textarea">@FormatHelper.Display(Model.FlightPnr)</div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.FlightInfo))
+        {
+            <div class="view-field">
+                <label>Itinerary</label>
+                <div class="flight-html">@Html.Raw(Model.FlightInfo)</div>
+            </div>
+        }
+        <div class="form-grid">
+            <div class="view-field">
+                <label>Traveling Date</label>
+                <div class="view-value">@FormatHelper.Display(Model.TravelDate)</div>
+            </div>
+            <div class="view-field">
+                <label>Returning Date</label>
+                <div class="view-value">@FormatHelper.Display(Model.ReturnDate)</div>
+            </div>
+            <div class="view-field">
+                <label>TFN</label>
+                <div class="view-value">@FormatHelper.Display(Model.Tfn)</div>
+            </div>
+            <div class="view-field">
+                <label>Airline Name</label>
+                <div class="view-value">@FormatHelper.Display(Model.Airline)</div>
+            </div>
+            <div class="view-field">
+                <label>Airline Confirmation</label>
+                <div class="view-value">@FormatHelper.Display(Model.Pnr)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Passenger Information</header>
+        @if (Model.Passengers.Count == 0)
+        {
+            <p class="section-empty">No passengers recorded.</p>
+        }
+        else
+        {
+            @foreach (var p in Model.Passengers)
+            {
+                <div class="passenger-block">
+                    <div class="form-grid">
+                        <div class="view-field">
+                            <label>First Name</label>
+                            <div class="view-value">@FormatHelper.Display(p.FirstName)</div>
+                        </div>
+                        <div class="view-field">
+                            <label>Middle Name</label>
+                            <div class="view-value">@FormatHelper.Display(p.MiddleName)</div>
+                        </div>
+                        <div class="view-field">
+                            <label>Last Name</label>
+                            <div class="view-value">@FormatHelper.Display(p.LastName)</div>
+                        </div>
+                        <div class="view-field">
+                            <label>Gender</label>
+                            <div class="view-value">@FormatHelper.Display(p.Gender)</div>
+                        </div>
+                        <div class="view-field">
+                            <label>Date of Birth</label>
+                            <div class="view-value">@FormatHelper.Display(p.Dob)</div>
+                        </div>
+                        <div class="view-field">
+                            <label>Ticket No.</label>
+                            <div class="view-value">@FormatHelper.Display(p.TicketNo)</div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Billing Information</header>
+        <div class="form-grid">
+            <div class="view-field">
+                <label>Card Holder Name</label>
+                <div class="view-value">@FormatHelper.Display(Model.CardHolderName)</div>
+            </div>
+            <div class="view-field">
+                <label>Card Type</label>
+                <div class="view-value">@FormatHelper.CardTypeName(Model.PaymentMethod)</div>
+            </div>
+            <div class="view-field span-2">
+                <label>Credit Card No</label>
+                <div class="view-value">@Model.CardNumberMasked</div>
+            </div>
+            <div class="view-field">
+                <label>Expiration Date</label>
+                <div class="view-value">@FormatHelper.Display(Model.ExpiryDate)</div>
+            </div>
+            <div class="view-field">
+                <label>Inbound No.</label>
+                <div class="view-value">@FormatHelper.Display(Model.InboundPhone)</div>
+            </div>
+            <div class="view-field">
+                <label>Billing No.</label>
+                <div class="view-value">@FormatHelper.Display(Model.Phone)</div>
+            </div>
+            <div class="view-field span-2">
+                <label>Email ID</label>
+                <div class="view-value">@FormatHelper.Display(Model.Email)</div>
+            </div>
+            <div class="view-field span-2">
+                <label>Billing Address</label>
+                <div class="view-value view-textarea">@FormatHelper.Display(Model.BillingAddress)</div>
+            </div>
+            <div class="view-field">
+                <label>Zip Code</label>
+                <div class="view-value">@FormatHelper.Display(Model.ZipCode)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Ticketing Information</header>
+        <div class="form-grid">
+            <div class="view-field">
+                <label>Airline Confirmation</label>
+                <div class="view-value">@FormatHelper.Display(Model.Pnr)</div>
+            </div>
+            <div class="view-field">
+                <label>Ticket Status</label>
+                <div class="view-value">
+                    <span class="badge @BookingStatusHelper.TicketStatusClass(Model.TicketStatus)">
+                        @BookingStatusHelper.TicketStatusLabel(Model.TicketStatus)
+                    </span>
+                </div>
+            </div>
+            <div class="view-field">
+                <label>Class of Booking</label>
+                <div class="view-value">@FormatHelper.Display(Model.ClassType)</div>
+            </div>
+            <div class="view-field">
+                <label>Supplier</label>
+                <div class="view-value">@FormatHelper.Display(Model.Supplier)</div>
+            </div>
+            <div class="view-field">
+                <label>Ticket Cost</label>
+                <div class="view-value">@FormatHelper.Display(Model.TicketCost)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Accounting Information</header>
+        <div class="form-grid">
+            <div class="view-field">
+                <label>MCO</label>
+                <div class="view-value">@FormatHelper.Money(Model.McoAmount, Model.Currency)</div>
+            </div>
+            <div class="view-field">
+                <label>Total</label>
+                <div class="view-value">@FormatHelper.Money(Model.TotalAmount, Model.Currency)</div>
+            </div>
+            <div class="view-field">
+                <label>Net MCO</label>
+                <div class="view-value">@FormatHelper.Money(Model.NetMco, Model.Currency)</div>
+            </div>
+            <div class="view-field">
+                <label>Split Charges</label>
+                <div class="view-value">@FormatHelper.Display(Model.SplitCharges)</div>
+            </div>
+            <div class="view-field">
+                <label>MCO Supplier &amp; Mail From</label>
+                <div class="view-value">@FormatHelper.Display(Model.McoSupplier)</div>
+            </div>
+            <div class="view-field">
+                <label>MCO Status</label>
+                <div class="view-value">
+                    <span class="badge @BookingStatusHelper.McoStatusClass(Model.McoStatus)">
+                        @BookingStatusHelper.McoStatusLabel(Model.McoStatus)
+                    </span>
+                </div>
+            </div>
+            <div class="view-field">
+                <label>Partial Refund</label>
+                <div class="view-value">@FormatHelper.Display(Model.PartialRefund)</div>
+            </div>
+            <div class="view-field">
+                <label>Currency</label>
+                <div class="view-value">@FormatHelper.Display(Model.Currency)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Payment URL</header>
+        <div class="form-grid">
+            <div class="view-field span-2">
+                <label>Payment URL</label>
+                <div class="view-value view-textarea">@FormatHelper.Display(Model.PaymentUrl)</div>
+            </div>
+            <div class="view-field">
+                <label>Payment Mode</label>
+                <div class="view-value">@FormatHelper.Display(Model.PaymentMode)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Customer Submitted Information</header>
+        <div class="form-grid">
+            <div class="view-field">
+                <label>Is it verified?</label>
+                <div class="view-value">
+                    <span class="badge @BookingStatusHelper.AckStatusClass(Model.CustomerAckStatus)">
+                        @BookingStatusHelper.AckStatusLabel(Model.CustomerAckStatus)
+                    </span>
+                </div>
+            </div>
+            <div class="view-field">
+                <label>IP Name</label>
+                <div class="view-value">@FormatHelper.Display(Model.CustomerAckIp)</div>
+            </div>
+            <div class="view-field span-2">
+                <label>Location</label>
+                <div class="view-value">@FormatHelper.Display(Model.CustomerAckLocation)</div>
+            </div>
+            <div class="view-field">
+                <label>Ack Date</label>
+                <div class="view-value">@FormatHelper.Display(Model.CustomerAckDate)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Follow-Up Agent Details</header>
+        <div class="form-grid">
+            <div class="view-field">
+                <label>Agent Name</label>
+                <div class="view-value">@FormatHelper.Display(Model.FollowUpByName)</div>
+            </div>
+            <div class="view-field">
+                <label>Date</label>
+                <div class="view-value">@FormatHelper.Display(Model.FollowUpDate)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Reservation Created Agent Details</header>
+        <div class="form-grid">
+            <div class="view-field">
+                <label>Agent Name</label>
+                <div class="view-value">@FormatHelper.Display(Model.CreatedByName)</div>
+            </div>
+            <div class="view-field">
+                <label>Date</label>
+                <div class="view-value">@FormatHelper.Display(Model.CreatedDate)</div>
+            </div>
+            <div class="view-field">
+                <label>Working User</label>
+                <div class="view-value">@FormatHelper.Display(Model.AssignedUserName)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Upload Images / Documents</header>
+        <div class="section-body">
+            @if (Model.Attachments.Count == 0)
+            {
+                <p class="section-empty">No files uploaded yet.</p>
+            }
+            else
+            {
+                <div class="attachment-gallery">
+                    @foreach (var file in Model.Attachments)
+                    {
+                        <div class="attachment-item">
+                            @if (file.IsImage)
+                            {
+                                <a class="attachment-thumb" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                    <img src="@($"{uploadsBase}{file.FileName}")"
+                                         alt="@file.DisplayName"
+                                         onerror="this.closest('.attachment-thumb').classList.add('broken-image')" />
+                                </a>
+                            }
+                            else
+                            {
+                                <a class="attachment-file" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                    <span class="file-icon">📄</span>
+                                </a>
+                            }
+                            <a class="attachment-name" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                @(file.DisplayName ?? file.FileName)
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+
+            <form class="upload-inline-form" method="post" asp-action="UploadAttachment" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.BookId" />
+                <input type="hidden" name="returnTo" value="details" />
+                <div class="form-field">
+                    <label>Upload new image or document</label>
+                    <input type="file" name="files" multiple accept="image/*,.pdf,.png,.jpg,.jpeg,.gif,.webp" required />
+                </div>
+                <button type="submit" class="btn primary">Upload</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Comments (@Model.CommentCount)</header>
+        <div class="section-body">
+            @if (Model.Comments.Count == 0)
+            {
+                <p class="section-empty">No comments yet.</p>
+            }
+            else
+            {
+                @foreach (var c in Model.Comments)
+                {
+                    <div class="comment">
+                        <strong>@(c.AuthorName ?? c.Username ?? "System")</strong>
+                        <small> · @(c.CreatedDate ?? "")</small>
+                        <p>@(c.Comment ?? "")</p>
+                    </div>
+                }
+            }
+
+            <form class="comment-form" method="post" asp-action="AddComment" asp-route-id="@Model.BookId">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnTo" value="details" />
+                <textarea name="newComment" placeholder="Add a comment..." required></textarea>
+                <button type="submit" class="btn primary">Post Comment</button>
+            </form>
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <a class="btn" asp-action="Index">Back to List</a>
+        <a class="btn primary" asp-action="Edit" asp-route-id="@Model.BookId">Edit</a>
+    </div>
+</div>

@@ -1,0 +1,435 @@
+@model CreateBookingViewModel
+@{
+    var isEdit = Model.IsEdit;
+    ViewData["Title"] = isEdit ? "Edit Booking" : "Create New Booking";
+    ViewData["ActiveNav"] = isEdit ? "bookings" : "bookings-create";
+    var days = Enumerable.Range(1, 31);
+    var months = Enumerable.Range(1, 12);
+    var years = Enumerable.Range(DateTime.Now.Year - 100, 101).Reverse();
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <a asp-action="Index">All Booking(s)</a>
+    <span>/</span>
+    <span>@(isEdit ? "Edit Booking" : "Create New Booking")</span>
+</nav>
+
+<header class="page-header">
+    <h2>@(isEdit ? "Edit Booking" : "Create New Booking")</h2>
+    <p>@(isEdit ? "Update booking details below" : "Enter flight, passenger, billing, and accounting details")</p>
+</header>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert validation-summary" asp-validation-summary="All"></div>
+}
+
+<form class="booking-form" method="post" asp-action="@(isEdit ? "Edit" : "Create")">
+    @Html.AntiForgeryToken()
+    @if (isEdit)
+    {
+        <input type="hidden" asp-for="BookId" />
+    }
+
+    <section class="form-section">
+        <header class="form-section-header">Booking Type</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="BookingType">Booking Type</label>
+                <select asp-for="BookingType" required>
+                    <option value="">- Select -</option>
+                    @foreach (var t in Model.BookingTypes)
+                    {
+                        <option value="@t.Id">@t.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="ReferenceNo">Booking Reference No</label>
+                <input asp-for="ReferenceNo" class="ref-readonly" readonly />
+            </div>
+            <div class="form-field">
+                <label asp-for="BookingLang">Language</label>
+                <select asp-for="BookingLang">
+                    <option value="0">English</option>
+                    <option value="1">Spanish</option>
+                </select>
+            </div>
+            <div class="form-field span-2">
+                <label asp-for="CustomEmailSubject">Custom Email Subject</label>
+                <input asp-for="CustomEmailSubject" />
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">
+            <span>Flight Information</span>
+        </header>
+        <div class="form-field">
+            <label asp-for="FlightPnr">PNR</label>
+            <textarea asp-for="FlightPnr" rows="5" placeholder="Paste PNR data here..."></textarea>
+        </div>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="TravelDate">Traveling Date</label>
+                <input asp-for="TravelDate" type="date" />
+            </div>
+            <div class="form-field">
+                <label asp-for="ReturnDate">Returning Date</label>
+                <input asp-for="ReturnDate" type="date" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Tfn">TFN</label>
+                <input asp-for="Tfn" placeholder="- Select or enter -" />
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section" id="passengers-section">
+        <header class="form-section-header">
+            <span>Passenger Information</span>
+            <button type="button" class="btn btn-sm section-btn" id="add-passenger">+ Add More</button>
+        </header>
+        <div id="passenger-list">
+            @for (var i = 0; i < Model.Passengers.Count; i++)
+            {
+                <div class="passenger-block" data-index="@i">
+                    @if (i > 0)
+                    {
+                        <div class="passenger-block-header">
+                            <strong>Passenger @(i + 1)</strong>
+                            <button type="button" class="btn btn-sm remove-passenger">Remove</button>
+                        </div>
+                    }
+                    <div class="form-grid">
+                        <input type="hidden" name="Passengers[@i].PassId" value="@Model.Passengers[i].PassId" />
+                        <div class="form-field">
+                            <label>First Name</label>
+                            <input name="Passengers[@i].FirstName" value="@Model.Passengers[i].FirstName" />
+                        </div>
+                        <div class="form-field">
+                            <label>Middle Name</label>
+                            <input name="Passengers[@i].MiddleName" value="@Model.Passengers[i].MiddleName" />
+                        </div>
+                        <div class="form-field">
+                            <label>Last Name</label>
+                            <input name="Passengers[@i].LastName" value="@Model.Passengers[i].LastName" />
+                        </div>
+                        <div class="form-field">
+                            <label>Gender</label>
+                            <select name="Passengers[@i].Gender">
+                                <option value="">- Select -</option>
+                                <option value="M" selected="@(Model.Passengers[i].Gender == "M")">Male</option>
+                                <option value="F" selected="@(Model.Passengers[i].Gender == "F")">Female</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label>Date of Birth</label>
+                            <div class="dob-row">
+                                <select name="Passengers[@i].DobDay">
+                                    <option value="">Day</option>
+                                    @foreach (var d in days)
+                                    {
+                                        <option value="@d" selected="@(Model.Passengers[i].DobDay == d)">@d</option>
+                                    }
+                                </select>
+                                <select name="Passengers[@i].DobMonth">
+                                    <option value="">Month</option>
+                                    @foreach (var m in months)
+                                    {
+                                        <option value="@m" selected="@(Model.Passengers[i].DobMonth == m)">@m</option>
+                                    }
+                                </select>
+                                <select name="Passengers[@i].DobYear">
+                                    <option value="">Year</option>
+                                    @foreach (var y in years)
+                                    {
+                                        <option value="@y" selected="@(Model.Passengers[i].DobYear == y)">@y</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label>Ticket No.</label>
+                            <input name="Passengers[@i].TicketNo" value="@Model.Passengers[i].TicketNo" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Billing Information</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="CardHolderName">Card Holder Name</label>
+                <input asp-for="CardHolderName" />
+            </div>
+            <div class="form-field">
+                <label asp-for="CardType">Card Type</label>
+                <select asp-for="CardType">
+                    <option value="">- Select -</option>
+                    <option value="1">Visa</option>
+                    <option value="2">Mastercard</option>
+                    <option value="3">American Express</option>
+                    <option value="4">Discover</option>
+                </select>
+            </div>
+            <div class="form-field span-2">
+                <label asp-for="CardNumber">Credit Card No</label>
+                <input asp-for="CardNumber" placeholder="xxxx-xxxx-xxxx-xxxx" />
+                <small class="field-hint">Card number format: xxxx-xxxx-xxxx-xxxx</small>
+            </div>
+            <div class="form-field">
+                <label asp-for="ExpiryDate">Expiration Date</label>
+                <input asp-for="ExpiryDate" placeholder="MM/YY" maxlength="5" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Cvv">CVV</label>
+                <input asp-for="Cvv" maxlength="4" />
+            </div>
+            <div class="form-field">
+                <label asp-for="InboundPhone">Inbound No.</label>
+                <input asp-for="InboundPhone" />
+            </div>
+            <div class="form-field">
+                <label asp-for="BillingPhone">Billing No.</label>
+                <input asp-for="BillingPhone" />
+            </div>
+            <div class="form-field span-2">
+                <label asp-for="Email">Email ID</label>
+                <input asp-for="Email" type="email" placeholder="Comma separated email ID" />
+            </div>
+            <div class="form-field span-2">
+                <label asp-for="BillingAddress">Billing Address</label>
+                <textarea asp-for="BillingAddress" rows="3"></textarea>
+            </div>
+            <div class="form-field">
+                <label asp-for="ZipCode">Zip Code</label>
+                <input asp-for="ZipCode" />
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Ticketing Information</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="AirlineConfirmation">Airline Confirmation</label>
+                <input asp-for="AirlineConfirmation" />
+            </div>
+            <div class="form-field">
+                <label asp-for="TicketStatus">Ticket Status</label>
+                <select asp-for="TicketStatus">
+                    <option value="0">Pending</option>
+                    <option value="1">Issued</option>
+                    <option value="2">Cancelled</option>
+                    <option value="3">Changed</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="ClassType">Class of Booking</label>
+                <select asp-for="ClassType">
+                    <option value="">- Select -</option>
+                    <option value="Economy">Economy</option>
+                    <option value="Premium Economy">Premium Economy</option>
+                    <option value="Business">Business</option>
+                    <option value="First">First</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="Supplier">Supplier</label>
+                <select asp-for="Supplier">
+                    <option value="">- Select -</option>
+                    <option value="Airline website">Airline website</option>
+                    <option value="Inhouse">Inhouse</option>
+                    <option value="GDS">GDS</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Accounting Information</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="TicketCost">Ticket Cost</label>
+                <input asp-for="TicketCost" placeholder="Comma separated values" />
+            </div>
+            <div class="form-field">
+                <label asp-for="AirlineName">Airline Name</label>
+                <input asp-for="AirlineName" placeholder="Comma separated values" />
+            </div>
+            <div class="form-field">
+                <label asp-for="McoAmount">MCO</label>
+                <input asp-for="McoAmount" />
+            </div>
+            <div class="form-field">
+                <label asp-for="TotalAmount">Total</label>
+                <input asp-for="TotalAmount" />
+            </div>
+            <div class="form-field">
+                <label asp-for="SplitCharges">Split Charges</label>
+                <select asp-for="SplitCharges">
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="McoSupplier">MCO Supplier &amp; Mail From</label>
+                <select asp-for="McoSupplier">
+                    <option value="">- Select -</option>
+                    <option value="1">Inhouse</option>
+                    <option value="2">Airline</option>
+                    <option value="3">Third Party</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="McoStatus">MCO Status</label>
+                <select asp-for="McoStatus">
+                    <option value="0">Pending</option>
+                    <option value="1">Completed</option>
+                    <option value="8">In Progress</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="PartialRefund">Partial Refund</label>
+                <input asp-for="PartialRefund" />
+            </div>
+            <div class="form-field">
+                <label asp-for="NetMco">Net MCO</label>
+                <input asp-for="NetMco" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Currency">Currency</label>
+                <select asp-for="Currency">
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="CAD">CAD</option>
+                    <option value="GBP">GBP</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Payment URL</header>
+        <div class="form-grid">
+            <div class="form-field span-2">
+                <label asp-for="PaymentUrl">Payment URL</label>
+                <textarea asp-for="PaymentUrl" rows="3" placeholder="Paste payment URL here..."></textarea>
+            </div>
+            <div class="form-field">
+                <label asp-for="PaymentMode">Payment Mode</label>
+                <select asp-for="PaymentMode">
+                    <option value="manual">Manual</option>
+                    <option value="online">Online</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Comments</header>
+        <div class="form-field">
+            <label asp-for="Comment">Comments</label>
+            <textarea asp-for="Comment" rows="3"></textarea>
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button type="submit" class="btn primary submit-booking">@(isEdit ? "Update and Go To Listing" : "Add and Go To Listing")</button>
+        <a class="btn" asp-action="Index">Cancel</a>
+    </div>
+</form>
+
+<template id="passenger-template">
+    <div class="passenger-block">
+        <div class="passenger-block-header">
+            <strong>Passenger</strong>
+            <button type="button" class="btn btn-sm remove-passenger">Remove</button>
+        </div>
+        <div class="form-grid">
+            <input type="hidden" data-field="PassId" value="0" />
+            <div class="form-field">
+                <label>First Name</label>
+                <input data-field="FirstName" />
+            </div>
+            <div class="form-field">
+                <label>Middle Name</label>
+                <input data-field="MiddleName" />
+            </div>
+            <div class="form-field">
+                <label>Last Name</label>
+                <input data-field="LastName" />
+            </div>
+            <div class="form-field">
+                <label>Gender</label>
+                <select data-field="Gender">
+                    <option value="">- Select -</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Date of Birth</label>
+                <div class="dob-row">
+                    <select data-field="DobDay"><option value="">Day</option>@foreach (var d in days) { <option value="@d">@d</option> }</select>
+                    <select data-field="DobMonth"><option value="">Month</option>@foreach (var m in months) { <option value="@m">@m</option> }</select>
+                    <select data-field="DobYear"><option value="">Year</option>@foreach (var y in years) { <option value="@y">@y</option> }</select>
+                </div>
+            </div>
+            <div class="form-field">
+                <label>Ticket No.</label>
+                <input data-field="TicketNo" />
+            </div>
+        </div>
+    </div>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const list = document.getElementById('passenger-list');
+            const template = document.getElementById('passenger-template');
+            const addBtn = document.getElementById('add-passenger');
+
+            function reindexPassengers() {
+                list.querySelectorAll('.passenger-block').forEach((block, index) => {
+                    block.dataset.index = index;
+                    const header = block.querySelector('.passenger-block-header strong');
+                    if (header) header.textContent = 'Passenger ' + (index + 1);
+
+                    block.querySelectorAll('[data-field]').forEach(el => {
+                        const field = el.dataset.field;
+                        el.name = 'Passengers[' + index + '].' + field;
+                    });
+
+                    block.querySelectorAll('input[type="hidden"][name^="Passengers"]').forEach(el => {
+                        if (!el.dataset.field) {
+                            el.name = 'Passengers[' + index + '].PassId';
+                        }
+                    });
+                });
+            }
+
+            addBtn.addEventListener('click', function () {
+                const clone = template.content.cloneNode(true);
+                list.appendChild(clone);
+                reindexPassengers();
+            });
+
+            list.addEventListener('click', function (e) {
+                if (e.target.classList.contains('remove-passenger')) {
+                    e.target.closest('.passenger-block').remove();
+                    reindexPassengers();
+                }
+            });
+        })();
+    </script>
+}

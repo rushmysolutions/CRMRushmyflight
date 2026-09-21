@@ -1,0 +1,279 @@
+@model BookingsIndexViewModel
+@{
+    ViewData["Title"] = "All Booking(s)";
+    ViewData["ActiveNav"] = "bookings";
+    var result = Model.Bookings;
+    var f = Model.Filter;
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <span>All Booking(s)</span>
+</nav>
+
+@if (TempData["BookingCreated"] is string createdRef)
+{
+    <div class="success-alert">Booking <strong>@createdRef</strong> created successfully.</div>
+}
+@if (TempData["BookingUpdated"] is string updatedRef)
+{
+    <div class="success-alert">Booking <strong>@updatedRef</strong> updated successfully.</div>
+}
+@if (TempData["UploadSuccess"] is string uploadSuccess)
+{
+    <div class="success-alert">@uploadSuccess</div>
+}
+@if (TempData["UploadError"] is string uploadError)
+{
+    <div class="alert">@uploadError</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>All Booking(s)</h2>
+        <p>Search and manage flight bookings</p>
+    </div>
+    <a class="btn primary" asp-action="Create">+ Create New Booking</a>
+</header>
+
+<section class="form-section booking-list-card">
+    <header class="form-section-header">Booking List</header>
+
+    <form class="booking-search" method="get" asp-action="Index">
+        <p class="search-label">Search By*</p>
+        <div class="form-grid">
+            <div class="form-field">
+                <label>Phone No</label>
+                <input name="phone" value="@f.Phone" />
+            </div>
+            <div class="form-field">
+                <label>Email Id</label>
+                <input name="email" value="@f.Email" />
+            </div>
+            <div class="form-field">
+                <label>Name</label>
+                <input name="name" value="@f.Name" />
+            </div>
+            <div class="form-field">
+                <label>Booking No.</label>
+                <input name="bookingNo" value="@f.BookingNo" />
+            </div>
+            <div class="form-field">
+                <label>Airline Confirmation</label>
+                <input name="airlineConfirmation" value="@f.AirlineConfirmation" />
+            </div>
+            <div class="form-field">
+                <label>Last 4 Digit of CC</label>
+                <input name="lastFourCc" value="@f.LastFourCc" maxlength="4" />
+            </div>
+            <div class="form-field">
+                <label>Date From</label>
+                <input name="dateFrom" type="datetime-local" value="@f.DateFrom" />
+            </div>
+            <div class="form-field">
+                <label>Date To</label>
+                <input name="dateTo" type="datetime-local" value="@f.DateTo" />
+            </div>
+            <div class="form-field">
+                <label>Booking Type</label>
+                <select name="type">
+                    <option value="">All types</option>
+                    @foreach (var t in Model.BookingTypes)
+                    {
+                        <option value="@t.Id" selected="@(f.Type == t.Id)">@t.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="search-actions">
+            <button type="submit" class="btn primary">Search</button>
+            <a class="btn" asp-action="Index">Clear</a>
+        </div>
+    </form>
+
+    <div class="table-wrap booking-table-wrap">
+        <table class="booking-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Booking No. &amp; Type</th>
+                    <th>C-Name</th>
+                    <th>Gross / Net MCO</th>
+                    <th>ACK.</th>
+                    <th>Created By</th>
+                    <th>Date</th>
+                    <th>Working User</th>
+                    <th>TKT Status / MCO Status</th>
+                    <th>Quality Status</th>
+                    <th>Follow-Up</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{
+                    var rowNum = (result.Page - 1) * result.PageSize;
+                }
+                @foreach (var b in result.Items)
+                {
+                    rowNum++;
+                    <tr>
+                        <td>@rowNum</td>
+                        <td>
+                            <a class="link" asp-action="Details" asp-route-id="@b.BookId"><strong>@(b.ReferenceNo ?? "-")</strong></a>
+                            <br /><small>@(b.TypeName ?? b.BookingType ?? "-")</small>
+                        </td>
+                        <td>@(b.CustomerName ?? "-")</td>
+                        <td>
+                            @FormatHelper.Money(b.McoAmount, b.Currency)
+                            <br /><small>@FormatHelper.Money(b.NetMco, b.Currency)</small>
+                        </td>
+                        <td>
+                            <span class="badge @BookingStatusHelper.AckStatusClass(b.CustomerAckStatus)">
+                                @BookingStatusHelper.AckStatusLabel(b.CustomerAckStatus)
+                            </span>
+                        </td>
+                        <td>@(b.CreatedByName ?? "-")</td>
+                        <td>@(b.CreatedDate ?? "-")</td>
+                        <td>@(b.AssignedUserName ?? "-")</td>
+                        <td>
+                            <span class="badge @BookingStatusHelper.TicketStatusClass(b.TicketStatus)">
+                                @BookingStatusHelper.TicketStatusLabel(b.TicketStatus)
+                            </span>
+                            <br />
+                            <span class="badge @BookingStatusHelper.McoStatusClass(b.McoStatus)">
+                                @BookingStatusHelper.McoStatusLabel(b.McoStatus)
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge @BookingStatusHelper.QualityStatusClass(b.QualityStatus)">
+                                @BookingStatusHelper.QualityStatusLabel(b.QualityStatus)
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge @BookingStatusHelper.FollowUpClass(b.FollowUpBy, b.FollowUpDate)">
+                                @BookingStatusHelper.FollowUpLabel(b.FollowUpBy, b.FollowUpDate)
+                            </span>
+                        </td>
+                        <td class="action-icons">
+                            <a class="icon-btn view" asp-action="Details" asp-route-id="@b.BookId" title="View">👁</a>
+                            <a class="icon-btn edit" asp-action="Edit" asp-route-id="@b.BookId" title="Edit">✎</a>
+                            <button type="button"
+                                    class="icon-btn upload"
+                                    title="Upload"
+                                    data-book-id="@b.BookId"
+                                    data-book-ref="@(b.ReferenceNo ?? b.BookId.ToString())">
+                                ☁↑
+                            </button>
+                            @if (b.AttachmentCount > 0)
+                            {
+                                <span class="attach-count" title="@b.AttachmentCount file(s)">@b.AttachmentCount</span>
+                            }
+                            <a class="icon-btn comment"
+                               asp-action="Comments"
+                               asp-route-id="@b.BookId"
+                               asp-route-page="@Model.Page"
+                               title="Comments">✉</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="table-footer">
+        <span>Showing @result.Items.Count of @result.TotalCount.</span>
+        <div class="pagination">
+            @if (result.Page > 1)
+            {
+                <a class="btn btn-sm"
+                   asp-action="Index"
+                   asp-route-page="@(result.Page - 1)"
+                   asp-route-phone="@f.Phone"
+                   asp-route-email="@f.Email"
+                   asp-route-name="@f.Name"
+                   asp-route-bookingNo="@f.BookingNo"
+                   asp-route-airlineConfirmation="@f.AirlineConfirmation"
+                   asp-route-lastFourCc="@f.LastFourCc"
+                   asp-route-dateFrom="@f.DateFrom"
+                   asp-route-dateTo="@f.DateTo"
+                   asp-route-type="@f.Type">Previous</a>
+            }
+            <span>Page @result.Page of @result.TotalPages</span>
+            @if (result.Page < result.TotalPages)
+            {
+                <a class="btn btn-sm"
+                   asp-action="Index"
+                   asp-route-page="@(result.Page + 1)"
+                   asp-route-phone="@f.Phone"
+                   asp-route-email="@f.Email"
+                   asp-route-name="@f.Name"
+                   asp-route-bookingNo="@f.BookingNo"
+                   asp-route-airlineConfirmation="@f.AirlineConfirmation"
+                   asp-route-lastFourCc="@f.LastFourCc"
+                   asp-route-dateFrom="@f.DateFrom"
+                   asp-route-dateTo="@f.DateTo"
+                   asp-route-type="@f.Type">Next</a>
+            }
+        </div>
+    </div>
+</section>
+
+<div class="modal" id="upload-modal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card">
+        <header class="modal-header">
+            <h3>Upload Files</h3>
+            <button type="button" class="modal-close" data-close-modal>&times;</button>
+        </header>
+        <p class="modal-subtitle">Booking: <strong id="upload-book-ref"></strong></p>
+        <form method="post"
+              asp-action="UploadAttachment"
+              enctype="multipart/form-data"
+              id="upload-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="upload-book-id" />
+            <input type="hidden" name="page" value="@Model.Page" />
+            <div class="form-field">
+                <label>Select image or document files</label>
+                <input type="file" name="files" multiple accept="image/*,.pdf,.png,.jpg,.jpeg,.gif,.webp" required />
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn primary">Upload</button>
+                <button type="button" class="btn" data-close-modal>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const modal = document.getElementById('upload-modal');
+            const form = document.getElementById('upload-form');
+            const bookIdInput = document.getElementById('upload-book-id');
+            const bookRefLabel = document.getElementById('upload-book-ref');
+
+            function openModal(bookId, bookRef) {
+                bookIdInput.value = bookId;
+                bookRefLabel.textContent = bookRef;
+                modal.hidden = false;
+            }
+
+            function closeModal() {
+                modal.hidden = true;
+                form.reset();
+            }
+
+            document.querySelectorAll('.icon-btn.upload').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    openModal(btn.dataset.bookId, btn.dataset.bookRef);
+                });
+            });
+
+            modal.querySelectorAll('[data-close-modal]').forEach(el => {
+                el.addEventListener('click', closeModal);
+            });
+        })();
+    </script>
+}

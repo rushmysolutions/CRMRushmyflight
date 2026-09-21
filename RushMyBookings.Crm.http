@@ -1,0 +1,6 @@
+@RushMyBookings.Crm_HostAddress = http://localhost:5289
+
+GET {{RushMyBookings.Crm_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

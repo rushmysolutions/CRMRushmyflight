@@ -1,0 +1,306 @@
+﻿@model IEnumerable<AgentPerformanceViewModel>
+<style>
+    >
+        .table-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+            .pagination .btn {
+                padding: 5px 15px;
+    }</style>
+    <nav class="breadcrumb">
+        <a asp-controller="Home" asp-action="Index">Home</a>
+        <span>/</span>
+        <span>Agent Performance</span>
+    </nav>
+
+    <header class="page-header">
+        <h2>Agent Performance</h2>
+    </header>
+
+    <!-- Filter -->
+    <section class="form-section mb-3">
+
+        <header class="form-section-header">
+            Filter
+        </header>
+
+        <div class="p-3">
+
+            <form asp-action="AgentManagement" method="get">
+
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-lg-4">
+                        <label class="form-label fw-bold">From Date</label>
+                        <input type="date"
+                               name="fromDate"
+                               class="form-control"
+                               value="@ViewBag.FromDate" />
+                    </div>
+
+                    <div class="col-lg-4">
+                        <label class="form-label fw-bold">To Date</label>
+                        <input type="date"
+                               name="toDate"
+                               class="form-control"
+                               value="@ViewBag.ToDate" />
+                    </div>
+
+                    <div class="col-lg-2">
+                        <button class="btn btn-primary w-100">
+                            🔍 Apply
+                        </button>
+                    </div>
+
+                </div>
+            </form>
+
+        </div>
+
+    </section>
+
+    <section class="form-section">
+
+        <header class="form-section-header">
+            Agent Performance
+        </header>
+
+        <div class="p-3">
+
+            <div class="row mb-3">
+
+                <div class="col-md-6">
+
+                    Show
+
+                    <select id="pageSize" class="form-select d-inline-block" style="width:90px">
+
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="500">500</option>
+
+                    </select>
+
+                    Entries
+
+                </div>
+
+                <div class="col-md-6 text-end">
+
+                    Search :
+
+                    <input type="text"
+                           id="searchInput"
+                           class="form-control d-inline-block"
+                           style="width:220px">
+
+                </div>
+
+            </div>
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-striped table-hover" id="agentTable">
+
+                    <thead class="table-dark">
+
+                        <tr>
+
+                            <th>#</th>
+                            <th>Agent Name</th>
+                            <th>Gross MCO</th>
+                            <th>Net MCO</th>
+                            <th>Bookings</th>
+                            <th>Gross Calls</th>
+                            <th>Buffer Charged</th>
+                            <th>Non Buffer</th>
+                            <th>Total Charged</th>
+                            <th>RPC</th>
+                            <th>Conversion %</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @{
+                            int sr = 1;
+                        }
+
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+
+                                <td>@sr</td>
+
+                                <td>@item.AgentName</td>
+
+                                <td>@item.GrossMco.ToString("C")</td>
+
+                                <td>@item.NetMco.ToString("C")</td>
+
+                                <td>@item.Bookings</td>
+
+                                <td>@item.GrossCalls</td>
+
+                                <td>@item.BufferCharged</td>
+
+                                <td>@item.NonBuffer</td>
+
+                                <td>@item.TotalCharged</td>
+
+                                <td>@item.Rpc</td>
+
+                                <td>@item.ConversionRate %</td>
+
+                            </tr>
+
+                            sr++;
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+
+                <div id="showingInfo"></div>
+
+                <div>
+
+                    <button type="button"
+                            id="prevBtn"
+                            class="btn btn-outline-primary btn-sm">
+                        Previous
+                    </button>
+
+                    <span id="pageNumber" class="mx-2 fw-bold"></span>
+
+                    <button type="button"
+                            id="nextBtn"
+                            class="btn btn-outline-primary btn-sm">
+                        Next
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function() {
+
+            let currentPage = 1;
+
+            let pageSize = parseInt(document.getElementById("pageSize").value);
+
+            const table = document.getElementById("agentTable");
+
+            const rows = Array.from(table.tBodies[0].rows);
+
+            function render() {
+
+                const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+                const filtered = rows.filter(r =>
+                    r.innerText.toLowerCase().includes(keyword));
+
+                pageSize = parseInt(document.getElementById("pageSize").value);
+
+                const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
+                if (currentPage > totalPages)
+                    currentPage = totalPages;
+
+                rows.forEach(r => r.style.display = "none");
+
+                const start = (currentPage - 1) * pageSize;
+
+                const end = start + pageSize;
+
+                filtered.slice(start, end).forEach(r => r.style.display = "");
+
+                document.getElementById("showingInfo").innerHTML =
+                    "Showing " +
+                    (filtered.length == 0 ? 0 : start + 1) +
+                    " to " +
+                    Math.min(end, filtered.length) +
+                    " of " +
+                    filtered.length +
+                    " entries";
+
+                document.getElementById("pageNumber").innerHTML =
+                    "Page " + currentPage + " / " + totalPages;
+
+                document.getElementById("prevBtn").disabled = currentPage == 1;
+                document.getElementById("nextBtn").disabled = currentPage == totalPages;
+
+            }
+
+            document.getElementById("searchInput").addEventListener("keyup", function() {
+
+                currentPage = 1;
+
+                render();
+
+            });
+
+            document.getElementById("pageSize").addEventListener("change", function() {
+
+                currentPage = 1;
+
+                render();
+
+            });
+
+            document.getElementById("prevBtn").addEventListener("click", function() {
+
+                if (currentPage > 1) {
+
+                    currentPage--;
+
+                    render();
+
+                }
+
+            });
+
+            document.getElementById("nextBtn").addEventListener("click", function() {
+
+                const total = Math.max(1,
+                    Math.ceil(rows.filter(r =>
+                        r.innerText.toLowerCase().includes(document.getElementById("searchInput").value.toLowerCase())).length / pageSize));
+
+                if (currentPage < total) {
+
+                    currentPage++;
+
+                    render();
+
+                }
+
+            });
+
+            render();
+
+        });
+
+    </script>

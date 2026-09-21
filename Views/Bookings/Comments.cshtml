@@ -1,0 +1,61 @@
+@model BookingCommentsViewModel
+@{
+    ViewData["Title"] = $"Comments · {Model.ReferenceNo ?? Model.BookId.ToString()}";
+    ViewData["ActiveNav"] = "bookings";
+}
+
+<p>
+    <a class="btn"
+       asp-action="Index"
+       asp-route-page="@Model.ReturnPage"
+       asp-route-search="@Model.ReturnSearch"
+       asp-route-type="@Model.ReturnType">← Back to bookings</a>
+    <a class="btn" asp-action="Details" asp-route-id="@Model.BookId">View booking</a>
+</p>
+
+@if (TempData["CommentError"] is string commentError)
+{
+    <div class="alert">@commentError</div>
+}
+
+<header class="page-header">
+    <h2>Comments</h2>
+    <p>
+        @(Model.ReferenceNo ?? "Booking") · #@Model.BookId
+        @if (!string.IsNullOrWhiteSpace(Model.CustomerName))
+        {
+            <span> · @Model.CustomerName</span>
+        }
+    </p>
+</header>
+
+<article class="detail-card">
+    <h3>Add comment</h3>
+    <form method="post" asp-action="AddComment" asp-route-id="@Model.BookId" class="comment-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="ReturnPage" value="@Model.ReturnPage" />
+        <input type="hidden" name="ReturnSearch" value="@Model.ReturnSearch" />
+        <input type="hidden" name="ReturnType" value="@Model.ReturnType" />
+        <textarea name="NewComment" rows="3" placeholder="Enter a comment..." required></textarea>
+        <button type="submit" class="primary">Save comment</button>
+    </form>
+</article>
+
+<article class="detail-card">
+    <h3>Comment history (@Model.Comments.Count)</h3>
+    @if (Model.Comments.Count == 0)
+    {
+        <p>No comments yet.</p>
+    }
+    else
+    {
+        @foreach (var c in Model.Comments)
+        {
+            <div class="comment">
+                <strong>@(c.AuthorName ?? c.Username ?? "System")</strong>
+                <small> · @(c.CreatedDate ?? "")</small>
+                <p>@(c.Comment ?? "")</p>
+            </div>
+        }
+    }
+</article>

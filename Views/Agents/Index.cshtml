@@ -1,0 +1,36 @@
+@model AgentsIndexViewModel
+@{
+    ViewData["Title"] = "Agents";
+    ViewData["ActiveNav"] = "agents";
+}
+
+<header class="page-header">
+    <h2>Agents</h2>
+    <p>Active users from tbl_users</p>
+</header>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Bookings</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var a in Model.Agents)
+            {
+                <tr>
+                    <td>@(a.Username ?? "-")</td>
+                    <td>@string.Join(" ", new[] { a.FirstName, a.LastName }.Where(s => !string.IsNullOrWhiteSpace(s)))</td>
+                    <td>@(a.Email ?? "-")</td>
+                    <td>@(a.UserType ?? "-")</td>
+                    <td>@a.BookingCount</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
