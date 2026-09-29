@@ -1,0 +1,68 @@
+@model IReadOnlyList<EmployeeListItem>
+@{
+    ViewData["Title"] = "Employees";
+    ViewData["ActiveNav"] = "attendance-employees";
+    string? search = ViewBag.Search as string;
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Employees</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>Employees</h2>
+        <p>Admin / HR — manage attendance staff</p>
+    </div>
+    <div class="filters">
+        <a class="btn" asp-action="Teams">Teams</a>
+        <a class="btn" asp-action="Departments">Departments</a>
+        <a class="btn" asp-action="Designations">Designations</a>
+        <a class="btn" asp-action="Holidays">Holidays</a>
+        <a class="btn primary" asp-action="Create">+ Add employee</a>
+    </div>
+</header>
+
+<form method="get" class="filters" style="margin-bottom: 16px;">
+    <input name="q" value="@search" placeholder="Search name, code, email…" />
+    <button type="submit" class="btn primary">Search</button>
+</form>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Team</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var e in Model)
+        {
+            <tr>
+                <td>@e.EmpCode</td>
+                <td>@e.FullName</td>
+                <td>@e.Email</td>
+                <td>@e.Role</td>
+                <td>@(e.Department ?? "—")</td>
+                <td>@(e.TeamName ?? "—")</td>
+                <td>@(e.IsActive ? "Active" : "Inactive")</td>
+                <td><a class="link" asp-action="Edit" asp-route-id="@e.EmployeeId">Edit</a></td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="8" class="muted">No employees found.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

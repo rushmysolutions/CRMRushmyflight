@@ -9,13 +9,20 @@
         <span class="brand-mark">RM</span>
         <div>
             <h1>Rush My Bookings</h1>
-            <p>Sign in with your CRM account</p>
+            <p>Select portal and sign in</p>
         </div>
     </div>
 
     <form asp-action="Login" method="post">
         <input type="hidden" asp-for="ReturnUrl" />
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+        <label asp-for="Portal"></label>
+        <select asp-for="Portal" class="login-portal">
+            <option value="@LoginPortals.Crm">CRM — Bookings</option>
+            <option value="@LoginPortals.Internal">Internal</option>
+        </select>
+        <span asp-validation-for="Portal" class="field-validation-error"></span>
 
         <label asp-for="Login"></label>
         <input asp-for="Login" autocomplete="username" placeholder="Username or email" />
@@ -31,7 +38,6 @@
         <button type="submit" class="primary login-btn">Sign in</button>
     </form>
 
-    <p class="login-hint"> username or email and password.</p>
 </div>
 
 @section Scripts {

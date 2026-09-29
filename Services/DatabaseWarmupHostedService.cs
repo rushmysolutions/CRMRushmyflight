@@ -8,7 +8,7 @@ public sealed class DatabaseWarmupHostedService(IServiceProvider services) : IHo
         {
             await using var scope = services.CreateAsyncScope();
             var dataService = scope.ServiceProvider.GetRequiredService<ICrmDataService>();
-            await dataService.CanConnectAsync(cancellationToken);
+            await dataService.CanConnectAsync();
         }
         catch
         {

@@ -1,0 +1,103 @@
+@model IReadOnlyList<HolidayListItem>
+@{
+    ViewData["Title"] = "Holidays";
+    ViewData["ActiveNav"] = "attendance-holidays";
+    var year = ViewBag.Year as int? ?? DateTime.Today.Year;
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Holidays</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>Holidays</h2>
+        <p>Non-optional holidays are excluded from working days and attendance %</p>
+    </div>
+    <form method="get" class="filters">
+        <select name="year" onchange="this.form.submit()">
+            @for (var y = DateTime.Today.Year - 1; y <= DateTime.Today.Year + 1; y++)
+            {
+                if (y == year)
+                {
+                    <option value="@y" selected>@y</option>
+                }
+                else
+                {
+                    <option value="@y">@y</option>
+                }
+            }
+        </select>
+    </form>
+</header>
+
+<section class="panel" style="margin-bottom: 20px;">
+    <h3>Add holiday</h3>
+    <form asp-action="CreateHoliday" method="post" class="filters">
+        @Html.AntiForgeryToken()
+        <input type="date" name="holidayDate" required value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+        <input name="name" placeholder="e.g. Independence Day" maxlength="120" required />
+        <label class="remember">
+            <input type="checkbox" name="isOptional" value="true" />
+            <span>Optional (still counts as working day)</span>
+        </label>
+        <button type="submit" class="btn primary">Save</button>
+    </form>
+    <p class="muted" style="margin: 12px 0 0;">
+        After adding or removing holidays, run <strong>Close Month</strong> again so monthly totals update.
+    </p>
+</section>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var h in Model)
+        {
+            <tr>
+                <td>@h.HolidayDate.ToString("dd MMM yyyy")</td>
+                <td>@h.HolidayDate.ToString("ddd")</td>
+                <td>@h.Name</td>
+                <td>
+                    @if (h.IsOptional)
+                    {
+                        <span class="badge badge-muted">Optional</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-info">Holiday</span>
+                    }
+                </td>
+                <td>
+                    <form asp-action="DeleteHoliday" method="post" class="inline-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="holidayId" value="@h.HolidayId" />
+                        <input type="hidden" name="year" value="@year" />
+                        <button type="submit" class="btn-link unlock"
+                                onclick="return confirm('Remove holiday @h.Name?');">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="5" class="muted">No holidays for @year. Add one above.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

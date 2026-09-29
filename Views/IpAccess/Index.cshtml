@@ -1,0 +1,83 @@
+@model AllowedIpIndexViewModel
+@{
+    ViewData["Title"] = "Allowed IPs";
+    ViewData["ActiveNav"] = "attendance-ip";
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Allowed IPs</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header">
+    <h2>Allowed IP addresses</h2>
+    <p>
+        @if (Model.RestrictionActive)
+        {
+            <span>Restriction is <strong>on</strong> — only the IPs below (and localhost) can open the app.</span>
+        }
+        else
+        {
+            <span>Restriction is <strong>off</strong> — add at least one IP to lock the app to those addresses.</span>
+        }
+    </p>
+</header>
+
+<section class="panel" style="margin-bottom: 20px;">
+    <h3>Add IP</h3>
+    <p class="muted" style="margin-top:0;">
+        Your current IP:
+        <code>@(Model.CurrentIp ?? "unknown")</code>
+        @if (!string.IsNullOrEmpty(Model.CurrentIp))
+        {
+            <span>— add this first so you don’t lock yourself out.</span>
+        }
+    </p>
+    <form asp-action="Create" method="post" class="filters" style="flex-wrap:wrap;">
+        @Html.AntiForgeryToken()
+        <input name="ipAddress" value="@Model.CurrentIp" placeholder="e.g. 203.0.113.10" maxlength="45" required />
+        <input name="note" placeholder="Optional note (office, VPN…)" maxlength="200" />
+        <button type="submit" class="btn primary">Add IP</button>
+    </form>
+</section>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>IP address</th>
+                <th>Note</th>
+                <th>Added</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td><code>@item.IpAddress</code></td>
+                <td>@(item.Note ?? "—")</td>
+                <td>@item.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                <td>
+                    <form asp-action="Delete" method="post" class="inline-form"
+                          onsubmit="return confirm('Remove @item.IpAddress from the allow list?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@item.AllowedIpId" />
+                        <button type="submit" class="btn-link unlock">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (Model.Items.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">No IPs yet. The app is open to everyone until you add one.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

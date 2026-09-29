@@ -1,0 +1,54 @@
+@model IReadOnlyList<DepartmentOption>
+@{
+    ViewData["Title"] = "Departments";
+    ViewData["ActiveNav"] = "attendance-departments";
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Departments</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header">
+    <h2>Departments</h2>
+    <p>These appear in the Department dropdown when you add or edit an employee</p>
+</header>
+
+<section class="panel" style="margin-bottom: 20px;">
+    <h3>Add department</h3>
+    <form asp-action="CreateDepartment" method="post" class="filters">
+        @Html.AntiForgeryToken()
+        <input name="name" placeholder="e.g. Sales" maxlength="80" required />
+        <button type="submit" class="btn primary">Save</button>
+    </form>
+</section>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var d in Model)
+        {
+            <tr>
+                <td>@d.DepartmentId</td>
+                <td>@d.Name</td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="2" class="muted">No departments yet. Add one above.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

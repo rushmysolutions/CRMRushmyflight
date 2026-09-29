@@ -1,65 +1,31 @@
-@model DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["ActiveNav"] = "dashboard";
-    var maxType = Model.Stats.BookingsByType.DefaultIfEmpty(new BookingTypeCount { Count = 1 }).Max(x => x.Count);
-    if (maxType == 0) maxType = 1;
-    var maxMonth = Model.Stats.BookingsByMonth.DefaultIfEmpty(new MonthlyBookingCount { Count = 1 }).Max(x => x.Count);
-    if (maxMonth == 0) maxMonth = 1;
-}
 
-<header class="page-header">
-    <h2>Dashboard</h2>
-    <p>Overview from rushmybookings_crms</p>
-</header>
+    var given = User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value?.Trim();
+    var surname = User.FindFirst(System.Security.Claims.ClaimTypes.Surname)?.Value?.Trim();
+    var displayName = string.Join(" ", new[] { given, surname }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    if (string.IsNullOrWhiteSpace(displayName))
+    {
+        displayName = User.Identity?.Name ?? "there";
+    }
 
-@if (!Model.DatabaseConnected)
-{
-    <div class="alert">
-        Cannot connect to the MySQL server. Check the connection string and that the EC2 security group allows port 3306 from your IP.
-    </div>
+    var hour = DateTime.Now.Hour;
+    var greeting = hour switch
+    {
+        < 12 => "Good morning",
+        < 17 => "Good afternoon",
+        _ => "Good evening"
+    };
 }
-else
-{
-    <div class="stats-grid">
-        <div class="stat-card"><span>Total bookings</span><strong>@Model.Stats.TotalBookings</strong></div>
-        <div class="stat-card"><span>Visible bookings</span><strong>@Model.Stats.VisibleBookings</strong></div>
-        <div class="stat-card"><span>Passengers</span><strong>@Model.Stats.TotalPassengers</strong></div>
-        <div class="stat-card"><span>Agents</span><strong>@Model.Stats.TotalAgents</strong></div>
-        <div class="stat-card"><span>Comments</span><strong>@Model.Stats.TotalComments</strong></div>
-        <div class="stat-card"><span>Revenue</span><strong>@FormatHelper.Money(Model.Stats.TotalRevenue)</strong></div>
+<section class="welcome-banner">
+    <div class="welcome-copy">
+        <p class="welcome-kicker">@greeting</p>
+        <h2>Welcome, @displayName</h2>
+      @*   <p class="welcome-sub">You’re signed in to Rush My Bookings. Use the sidebar to open any module.</p> *@
     </div>
-
-    <div class="panels">
-        <article class="panel">
-            <h3>Bookings by type</h3>
-            <div class="chart-list">
-                @foreach (var item in Model.Stats.BookingsByType)
-                {
-                    <div class="bar-row">
-                        <span>@(item.TypeName ?? "Unknown")</span>
-                        <div class="bar-track">
-                            <div class="bar-fill" style="width:@(item.Count * 100.0 / maxType)%"></div>
-                        </div>
-                        <strong>@item.Count</strong>
-                    </div>
-                }
-            </div>
-        </article>
-        <article class="panel">
-            <h3>Bookings by month</h3>
-            <div class="chart-list">
-                @foreach (var item in Model.Stats.BookingsByMonth)
-                {
-                    <div class="bar-row">
-                        <span>@item.Month</span>
-                        <div class="bar-track">
-                            <div class="bar-fill" style="width:@(item.Count * 100.0 / maxMonth)%"></div>
-                        </div>
-                        <strong>@item.Count</strong>
-                    </div>
-                }
-            </div>
-        </article>
+    <div class="welcome-meta">
+        <div class="welcome-date">@DateTime.Now.ToString("dddd")</div>
+        <div class="welcome-day">@DateTime.Now.ToString("dd MMM yyyy")</div>
     </div>
-}
+</section>

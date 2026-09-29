@@ -1,0 +1,54 @@
+@model IReadOnlyList<DesignationOption>
+@{
+    ViewData["Title"] = "Designations";
+    ViewData["ActiveNav"] = "attendance-designations";
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Designations</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header">
+    <h2>Designations</h2>
+    <p>These appear in the Designation dropdown when you add or edit an employee</p>
+</header>
+
+<section class="panel" style="margin-bottom: 20px;">
+    <h3>Add designation</h3>
+    <form asp-action="CreateDesignation" method="post" class="filters">
+        @Html.AntiForgeryToken()
+        <input name="name" placeholder="e.g. Sales Executive" maxlength="80" required />
+        <button type="submit" class="btn primary">Save</button>
+    </form>
+</section>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var d in Model)
+        {
+            <tr>
+                <td>@d.DesignationId</td>
+                <td>@d.Name</td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="2" class="muted">No designations yet. Add one above.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

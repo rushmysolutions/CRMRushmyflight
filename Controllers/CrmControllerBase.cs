@@ -14,7 +14,7 @@ public abstract class CrmControllerBase(ICrmDataService dataService) : Controlle
     {
         try
         {
-            ViewBag.DatabaseConnected = await DataService.CanConnectAsync(context.HttpContext.RequestAborted);
+            ViewBag.DatabaseConnected = await DataService.CanConnectAsync();
         }
         catch
         {

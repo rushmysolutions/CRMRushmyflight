@@ -12,8 +12,7 @@ public sealed class BookingFileService(IWebHostEnvironment env, CrmDbContext db)
 
     public async Task<int> AddAttachmentsAsync(
         int bookingId,
-        IEnumerable<IFormFile> files,
-        CancellationToken cancellationToken = default)
+        IEnumerable<IFormFile> files)
     {
         var validFiles = files.Where(f => f.Length > 0).ToList();
         if (validFiles.Count == 0)
@@ -22,7 +21,7 @@ public sealed class BookingFileService(IWebHostEnvironment env, CrmDbContext db)
         }
 
         var exists = await db.Bookings.AsNoTracking()
-            .AnyAsync(b => b.BookId == bookingId, cancellationToken);
+            .AnyAsync(b => b.BookId == bookingId);
 
         if (!exists)
         {
@@ -40,7 +39,7 @@ public sealed class BookingFileService(IWebHostEnvironment env, CrmDbContext db)
             var path = Path.Combine(UploadDirectory, storedName);
 
             await using var stream = File.Create(path);
-            await file.CopyToAsync(stream, cancellationToken);
+            await file.CopyToAsync(stream);
             savedNames.Add(storedName);
         }
 
@@ -49,7 +48,7 @@ public sealed class BookingFileService(IWebHostEnvironment env, CrmDbContext db)
         var attachment = await db.Attachments
             .Where(a => a.BookingId == bookingId)
             .OrderByDescending(a => a.AttachId)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         if (attachment is null)
         {
@@ -65,7 +64,7 @@ public sealed class BookingFileService(IWebHostEnvironment env, CrmDbContext db)
             attachment.AttachFiles = (attachment.AttachFiles ?? string.Empty) + appended;
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync();
         return savedNames.Count;
     }
 

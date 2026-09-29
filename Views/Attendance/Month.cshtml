@@ -1,0 +1,212 @@
+@model AttendanceMonthViewModel
+@{
+    ViewData["Title"] = "Monthly Attendance";
+    var canManageLock = ViewBag.CanManageLock as bool? == true;
+    var canHrMark = ViewBag.CanHrMark as bool? == true;
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;My Attendance&nbsp;/&nbsp;@Model.MonthName</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>@Model.EmployeeName <span class="muted">(@Model.EmpCode)</span></h2>
+        <p>
+            @Model.MonthName
+            @if (Model.IsLocked)
+            {
+                <span class="badge badge-danger">Locked</span>
+            }
+            else
+            {
+                <span class="badge badge-success">Draft</span>
+            }
+        </p>
+    </div>
+    <div class="filters">
+        @if (canManageLock)
+        {
+            <form asp-controller="Attendance" asp-action="SetMonthLock" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="employeeId" value="@Model.EmployeeId" />
+                <input type="hidden" name="year" value="@Model.Year" />
+                <input type="hidden" name="month" value="@Model.Month" />
+                @if (Model.IsLocked)
+                {
+                    <input type="hidden" name="lockMonth" value="false" />
+                    <button type="submit" class="btn"
+                            onclick="return confirm('Unlock attendance for this employee?');">
+                        Unlock employee
+                    </button>
+                }
+                else
+                {
+                    <input type="hidden" name="lockMonth" value="true" />
+                    <button type="submit" class="btn primary"
+                            onclick="return confirm('Lock attendance for this employee?');">
+                        Lock employee
+                    </button>
+                }
+            </form>
+        }
+        <form method="get" class="filters" id="monthFilterForm">
+            <input type="hidden" name="id" value="@Model.EmployeeId" />
+            @{
+                var allowedMonths = ViewBag.AllowedMonths as IReadOnlyList<DateTime> ?? AttendancePeriodHelper.GetAllowedMonths();
+            }
+            <input type="hidden" name="year" id="attYear" value="@Model.Year" />
+            <input type="hidden" name="month" id="attMonth" value="@Model.Month" />
+            <select id="attPeriod" class="period-select">
+                @foreach (var p in allowedMonths)
+                {
+                    if (p.Year == Model.Year && p.Month == Model.Month)
+                    {
+                        <option value="@p.Year-@p.Month" selected>@p.ToString("MMMM yyyy")</option>
+                    }
+                    else
+                    {
+                        <option value="@p.Year-@p.Month">@p.ToString("MMMM yyyy")</option>
+                    }
+                }
+            </select>
+            <button type="submit" class="btn primary">Go</button>
+        </form>
+    </div>
+</header>
+
+@if (Model.Summary is not null)
+{
+    var workMins = Model.Summary.TotalWorkMinutes;
+    var hoursLabel = workMins <= 0
+        ? "—"
+        : (workMins % 60 == 0 ? $"{workMins / 60}h" : $"{workMins / 60}h {workMins % 60}m");
+    <div class="stats-grid">
+        <div class="stat-card"><span>Working days</span><strong>@Model.Summary.WorkingDaysInMonth</strong></div>
+        <div class="stat-card"><span>Present (incl. WFH)</span><strong>@Model.Summary.PresentDays</strong></div>
+        <div class="stat-card"><span>Absent</span><strong>@Model.Summary.AbsentDays</strong></div>
+        <div class="stat-card"><span>Half day</span><strong>@Model.Summary.HalfDays</strong></div>
+        <div class="stat-card"><span>Leave</span><strong>@Model.Summary.LeaveDays</strong></div>
+        <div class="stat-card"><span>WFH</span><strong>@Model.Summary.WfhDays</strong></div>
+        <div class="stat-card"><span>Working hours</span><strong>@hoursLabel</strong></div>
+        <div class="stat-card"><span>Attendance %</span><strong>@Model.Summary.AttendancePercent.ToString("0.##")</strong></div>
+        <div class="stat-card"><span>Status</span><strong>@Model.Summary.Status</strong></div>
+    </div>
+}
+
+@if (canHrMark && Model.CanEdit && !Model.IsLocked)
+{
+    <section class="panel" style="margin-bottom: 20px;">
+        <h3>HR: update status</h3>
+        <p class="muted">Employees use Opt-in / Opt-out. Use this to set Leave, Absent, WFH, etc.</p>
+        <form asp-controller="Attendance" asp-action="Mark" method="post" class="attendance-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="EmployeeId" value="@Model.EmployeeId" />
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Date</label>
+                    <input type="date" name="AttendanceDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-field">
+                    <label>Status</label>
+                    <select name="Status">
+                        @foreach (var s in DailyAttendanceStatus.All)
+                        {
+                            var label = s switch
+                            {
+                                "HalfDay" => "Half Day",
+                                "WFH" => "WFH (Work From Home)",
+                                _ => s
+                            };
+                            <option value="@s">@label</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-field" style="grid-column: 1 / -1;">
+                    <label>Remarks</label>
+                    <input name="Remarks" />
+                </div>
+            </div>
+            <button type="submit" class="btn primary" style="margin-top: 14px;">Save</button>
+        </form>
+    </section>
+}
+else if (Model.IsLocked)
+{
+    <div class="panel" style="margin-bottom: 20px;">
+        <p class="muted" style="margin:0;">This employee’s month is <strong>Locked</strong>. Admin/HR can unlock above to allow edits.</p>
+    </div>
+}
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Day</th>
+                <th>Status</th>
+                <th>Opt-in</th>
+                <th>Opt-out</th>
+                <th>Hours</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var d in Model.Days)
+        {
+            <tr class="@(d.IsWeekend ? "row-muted" : "")">
+                <td>@d.Date.ToString("dd MMM yyyy")</td>
+                <td>@d.Date.ToString("ddd")</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(d.Status))
+                    {
+                        <span class="badge @(string.Equals(d.Status, "WFH", StringComparison.OrdinalIgnoreCase) ? "badge-info" : "badge-muted")">
+                            @(d.Status == "HalfDay" ? "Half Day" : d.Status)
+                        </span>
+                    }
+                    else if (d.IsHoliday)
+                    {
+                        <span class="badge badge-muted">Holiday</span>
+                    }
+                    else if (d.IsWeekend)
+                    {
+                        <span class="muted">Weekend</span>
+                    }
+                    else
+                    {
+                        <span class="muted">—</span>
+                    }
+                </td>
+                <td>@(d.OptIn?.ToString(@"hh\:mm") ?? "—")</td>
+                <td>@(d.OptOut?.ToString(@"hh\:mm") ?? "—")</td>
+                <td>@d.WorkHoursDisplay</td>
+                <td>@(d.Remarks ?? "—")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var period = document.getElementById('attPeriod');
+            var month = document.getElementById('attMonth');
+            var year = document.getElementById('attYear');
+            function sync() {
+                var parts = period.value.split('-');
+                year.value = parts[0];
+                month.value = parts[1];
+            }
+            sync();
+            period.addEventListener('change', sync);
+        })();
+    </script>
+}

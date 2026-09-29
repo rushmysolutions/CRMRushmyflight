@@ -1,0 +1,83 @@
+@model TeamAttendanceViewModel
+@{
+    ViewData["Title"] = "Team Attendance";
+    ViewData["ActiveNav"] = "attendance-team";
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Team Attendance</nav>
+
+<header class="page-header row">
+    <div>
+        <h2>Team Attendance</h2>
+        <p>Daily view for your team@(AttendanceAccess.CanViewAll(User) ? " / all staff" : "")</p>
+    </div>
+</header>
+
+<form method="get" class="filters" style="margin-bottom: 16px;">
+    <input type="date" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+    <input type="search" name="q" value="@Model.Search" placeholder="Name or code" autocomplete="off" />
+    @if (Model.Teams.Count > 0)
+    {
+        <select name="teamId">
+            <option value="">All teams</option>
+            @foreach (var t in Model.Teams)
+            {
+                if (Model.TeamId == t.TeamId)
+                {
+                    <option value="@t.TeamId" selected>@t.Name</option>
+                }
+                else
+                {
+                    <option value="@t.TeamId">@t.Name</option>
+                }
+            }
+        </select>
+    }
+    <button type="submit" class="btn primary">Filter</button>
+</form>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Team</th>
+                <th>Status</th>
+                <th>Opt-in</th>
+                <th>Opt-out</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var r in Model.Rows)
+        {
+            <tr>
+                <td>@r.EmpCode</td>
+                <td>@r.FullName</td>
+                <td>@(r.TeamName ?? "—")</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(r.Status))
+                    {
+                        <span class="badge @(string.Equals(r.Status, "WFH", StringComparison.OrdinalIgnoreCase) ? "badge-info" : "badge-muted")">@r.Status</span>
+                    }
+                    else
+                    {
+                        <span class="muted">Not marked</span>
+                    }
+                </td>
+                <td>@(r.OptIn?.ToString(@"hh\:mm") ?? "—")</td>
+                <td>@(r.OptOut?.ToString(@"hh\:mm") ?? "—")</td>
+                <td>
+                    <a class="link" asp-controller="Attendance" asp-action="Month" asp-route-id="@r.EmployeeId"
+                       asp-route-year="@Model.Date.Year" asp-route-month="@Model.Date.Month">Month</a>
+                </td>
+            </tr>
+        }
+        @if (Model.Rows.Count == 0)
+        {
+            <tr><td colspan="7" class="muted">No team members found for this filter.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

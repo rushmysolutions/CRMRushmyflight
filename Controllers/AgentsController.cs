@@ -6,17 +6,16 @@ namespace RushMyBookings.Crm.Controllers;
 
 public class AgentsController(ICrmDataService dataService) : CrmControllerBase(dataService)
 {
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index()
     {
-        var agents = await DataService.GetAgentsAsync(cancellationToken);
+        var agents = await DataService.GetAgentsAsync();
         return View(new AgentsIndexViewModel { Agents = agents });
     }
     public async Task<IActionResult> AgentManagement(
     DateTime? fromDate,
-    DateTime? toDate,
-    CancellationToken cancellationToken)
+    DateTime? toDate)
     {
-        var agents = await DataService.GetAgentPerformanceAsync(fromDate, toDate, cancellationToken);
+        var agents = await DataService.GetAgentPerformanceAsync(fromDate, toDate);
 
         ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
         ViewBag.ToDate = toDate?.ToString("yyyy-MM-dd");

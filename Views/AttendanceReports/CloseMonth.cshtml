@@ -1,0 +1,81 @@
+@model CloseMonthViewModel
+@{
+    ViewData["Title"] = "Close Month";
+    ViewData["ActiveNav"] = "attendance-close";
+    var allowedMonths = ViewBag.AllowedMonths as IReadOnlyList<DateTime> ?? AttendancePeriodHelper.GetAllowedMonths();
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Monthly Report&nbsp;/&nbsp;Close Month</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header">
+    <h2>Close Month</h2>
+    <p>Calculate totals for all employees, then lock or unlock the whole month from this page.</p>
+</header>
+
+<section class="panel">
+    <form method="post" asp-action="CloseMonth" id="closeMonthForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Year" id="attYear" />
+        <input type="hidden" asp-for="Month" id="attMonth" />
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label>Month</label>
+                <select id="attPeriod" class="period-select">
+                    @foreach (var p in allowedMonths)
+                    {
+                        if (p.Year == Model.Year && p.Month == Model.Month)
+                        {
+                            <option value="@p.Year-@p.Month" selected>@p.ToString("MMMM yyyy")</option>
+                        }
+                        else
+                        {
+                            <option value="@p.Year-@p.Month">@p.ToString("MMMM yyyy")</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="lock-actions" style="margin-top: 18px; display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="submit" name="LockMonth" value="true" class="btn primary"
+                    onclick="return confirm('Calculate and LOCK attendance for all employees this month?');">
+                Lock all employees
+            </button>
+            <button type="submit" name="LockMonth" value="false" class="btn"
+                    onclick="return confirm('Calculate and UNLOCK attendance for all employees this month?');">
+                Unlock all employees
+            </button>
+        </div>
+
+        <p class="muted" style="margin-top: 14px;">
+            To lock or unlock a single employee, use <strong>Monthly Report</strong> → Lock / Unlock on that row.
+        </p>
+    </form>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            var period = document.getElementById('attPeriod');
+            var month = document.getElementById('attMonth');
+            var year = document.getElementById('attYear');
+            function sync() {
+                var parts = period.value.split('-');
+                year.value = parts[0];
+                month.value = parts[1];
+            }
+            sync();
+            period.addEventListener('change', sync);
+        })();
+    </script>
+}

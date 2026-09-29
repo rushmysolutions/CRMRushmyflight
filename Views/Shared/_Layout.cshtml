@@ -7,47 +7,115 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-    <div class="app">
-        <aside class="sidebar">
+@{
+    var isInternal = AttendanceAccess.IsInternalPortal(User);
+    var isCrm = !isInternal;
+    var activeNav = ViewData["ActiveNav"]?.ToString() ?? "";
+}
+    <div class="app" id="app">
+        <header class="mobile-topbar">
+            <button type="button" class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="mobile-brand">
+                <span class="brand-mark sm">RM</span>
+                <div>
+                    <strong>Rush My Bookings</strong>
+                    <span>@(isInternal ? "Internal Attendance" : "Travel CRM")</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
+        <aside class="sidebar" id="sidebar">
             <div class="brand">
                 <span class="brand-mark">RM</span>
                 <div>
                     <h1>Rush My Bookings</h1>
-                    <p>Travel CRM</p>
+                    <p>@(isInternal ? "Internal Attendance" : "Travel CRM")</p>
                 </div>
+                <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close menu">&times;</button>
             </div>
             <nav>
-                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "dashboard" ? "active" : "")"
-                   asp-controller="Home" asp-action="Index">Dashboard</a>
-                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "bookings" ? "active" : "")"
-                   asp-controller="Bookings" asp-action="Index">Bookings</a>
-                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "bookings-create" ? "active" : "")"
-                   asp-controller="Bookings" asp-action="Create">Create Booking</a>
-                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
-                   asp-controller="Agents" asp-action="Index">Agents</a>
-                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
-                   asp-controller="Agents" asp-action="AgentManagement">Agent Management</a>
-                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
-                   asp-controller="Home" asp-action="NotificationManagement">Notification Management</a>
-                <a class="nav-link @(ViewData["ActiveNav"]?.ToString() == "agents" ? "active" : "")"
-                   asp-controller="Customer" asp-action="CustomerManagement">Customer Services</a>
+                @if (isCrm)
+                {
+                    <a class="nav-link @(activeNav == "dashboard" ? "active" : "")"
+                       asp-controller="Home" asp-action="Index">Dashboard</a>
+                    <a class="nav-link @(activeNav == "bookings" ? "active" : "")"
+                       asp-controller="Bookings" asp-action="Index">Bookings</a>
+                    <a class="nav-link @(activeNav == "bookings-create" ? "active" : "")"
+                       asp-controller="Bookings" asp-action="Create">Create Booking</a>
+                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+                       asp-controller="Agents" asp-action="Index">Agents</a>
+                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+                       asp-controller="Agents" asp-action="AgentManagement">Agent Management</a>
+                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+                       asp-controller="Home" asp-action="NotificationManagement">Notification Management</a>
+                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+                       asp-controller="Customer" asp-action="CustomerManagement">Customer Services</a>
+                }
 
+                @if (isInternal)
+                {
+                    <details class="nav-group" open>
+                        <summary class="nav-group-title">Attendance</summary>
+                        <div class="nav-sub">
+                            <a class="nav-link @(activeNav == "attendance-mine" ? "active" : "")"
+                               asp-controller="Attendance" asp-action="Index">My Attendance</a>
+
+                            @if (AttendanceAccess.CanViewTeam(User))
+                            {
+                                <a class="nav-link @(activeNav == "attendance-team" ? "active" : "")"
+                                   asp-controller="AttendanceReports" asp-action="Team">Team Attendance</a>
+                            }
+
+                            <a class="nav-link @(activeNav == "attendance-reports" ? "active" : "")"
+                               asp-controller="AttendanceReports" asp-action="Monthly">Monthly Report</a>
+
+                            @if (AttendanceAccess.CanManageEmployees(User))
+                            {
+                                <a class="nav-link @(activeNav == "attendance-employees" ? "active" : "")"
+                                   asp-controller="Employees" asp-action="Index">Employees</a>
+                                <a class="nav-link @(activeNav == "attendance-teams" ? "active" : "")"
+                                   asp-controller="Employees" asp-action="Teams">Teams</a>
+                                <a class="nav-link @(activeNav == "attendance-departments" ? "active" : "")"
+                                   asp-controller="Employees" asp-action="Departments">Departments</a>
+                                <a class="nav-link @(activeNav == "attendance-designations" ? "active" : "")"
+                                   asp-controller="Employees" asp-action="Designations">Designations</a>
+                                <a class="nav-link @(activeNav == "attendance-holidays" ? "active" : "")"
+                                   asp-controller="Employees" asp-action="Holidays">Holidays</a>
+                            }
+
+                            @if (AttendanceAccess.CanManageIpAddresses(User))
+                            {
+                                <a class="nav-link @(activeNav == "attendance-ip" ? "active" : "")"
+                                   asp-controller="IpAccess" asp-action="Index">Allowed IPs</a>
+                            }
+
+                            @if (AttendanceAccess.CanCloseMonth(User))
+                            {
+                                <a class="nav-link @(activeNav == "attendance-close" ? "active" : "")"
+                                   asp-controller="AttendanceReports" asp-action="CloseMonth">Close Month</a>
+                            }
+                        </div>
+                    </details>
+                }
             </nav>
             @if (User.Identity?.IsAuthenticated == true)
             {
                 <div class="user-panel">
                     <div class="user-name">@User.Identity.Name</div>
-                    <div class="user-role">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</div>
+                    <div class="user-role">
+                        @(isInternal
+                            ? (User.FindFirst(AttendanceClaimTypes.AttendanceRole)?.Value ?? "Internal")
+                            : (User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "CRM"))
+                        · @(isInternal ? "Internal" : "CRM")
+                    </div>
                     <form asp-controller="Account" asp-action="Logout" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="logout-btn">Sign out</button>
                     </form>
-                </div>
-            }
-            @if (ViewBag.DatabaseConnected is bool connected)
-            {
-                <div class="db-status @(connected ? "ok" : "error")">
-                    Database: @(connected ? "Connected" : "Disconnected")
                 </div>
             }
         </aside>
@@ -55,6 +123,38 @@
             @RenderBody()
         </main>
     </div>
+    <script>
+        (function () {
+            var app = document.getElementById('app');
+            var toggle = document.getElementById('menuToggle');
+            var closeBtn = document.getElementById('sidebarClose');
+            var backdrop = document.getElementById('sidebarBackdrop');
+            if (!app || !toggle) return;
+
+            function setOpen(open) {
+                app.classList.toggle('nav-open', open);
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+                if (backdrop) backdrop.hidden = !open;
+                document.body.classList.toggle('no-scroll', open);
+            }
+
+            toggle.addEventListener('click', function () {
+                setOpen(!app.classList.contains('nav-open'));
+            });
+            if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); });
+            if (backdrop) backdrop.addEventListener('click', function () { setOpen(false); });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') setOpen(false);
+            });
+            window.addEventListener('resize', function () {
+                if (window.matchMedia('(min-width: 901px)').matches) setOpen(false);
+            });
+            document.querySelectorAll('#sidebar a.nav-link').forEach(function (link) {
+                link.addEventListener('click', function () { setOpen(false); });
+            });
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -1,0 +1,248 @@
+@model MonthlyReportViewModel
+@{
+    ViewData["Title"] = "Monthly Report";
+    ViewData["ActiveNav"] = "attendance-reports";
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Monthly Report</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>Monthly Report</h2>
+        <p>@Model.MonthName — totals plus per-day status for everyone</p>
+    </div>
+    @if (Model.CanCloseMonth)
+    {
+        <a class="btn primary" asp-action="CloseMonth">Close / calculate month</a>
+    }
+</header>
+
+<form method="get" class="filters" style="margin-bottom: 16px;" id="monthlyFilterForm">
+    @{
+        var allowedMonths = ViewBag.AllowedMonths as IReadOnlyList<DateTime> ?? AttendancePeriodHelper.GetAllowedMonths();
+    }
+    <input type="hidden" name="year" id="attYear" value="@Model.Year" />
+    <input type="hidden" name="month" id="attMonth" value="@Model.Month" />
+    <select id="attPeriod" class="period-select">
+        @foreach (var p in allowedMonths)
+        {
+            if (p.Year == Model.Year && p.Month == Model.Month)
+            {
+                <option value="@p.Year-@p.Month" selected>@p.ToString("MMMM yyyy")</option>
+            }
+            else
+            {
+                <option value="@p.Year-@p.Month">@p.ToString("MMMM yyyy")</option>
+            }
+        }
+    </select>
+    <input type="search" name="q" value="@Model.Search" placeholder="Name or code" autocomplete="off" />
+    @if (Model.Employees.Count > 0)
+    {
+        <select name="employeeId">
+            <option value="">All visible employees</option>
+            @foreach (var e in Model.Employees)
+            {
+                if (Model.EmployeeId == e.EmployeeId)
+                {
+                    <option value="@e.EmployeeId" selected>@e.Display</option>
+                }
+                else
+                {
+                    <option value="@e.EmployeeId">@e.Display</option>
+                }
+            }
+        </select>
+    }
+    <button type="submit" class="btn primary">Apply</button>
+</form>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Team</th>
+                <th>Working</th>
+                <th>Present*</th>
+                <th>Absent</th>
+                <th>Half</th>
+                <th>Leave</th>
+                <th>WFH</th>
+                <th>Hours</th>
+                <th>%</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var r in Model.Rows)
+        {
+            <tr>
+                <td>@r.EmpCode</td>
+                <td>@r.FullName</td>
+                <td>@(r.TeamName ?? "—")</td>
+                <td>@r.WorkingDaysInMonth</td>
+                <td>@r.PresentDays</td>
+                <td>@r.AbsentDays</td>
+                <td>@r.HalfDays</td>
+                <td>@r.LeaveDays</td>
+                <td>@r.WfhDays</td>
+                <td>@r.WorkHoursDisplay</td>
+                <td>@r.AttendancePercent.ToString("0.##")</td>
+                <td>
+                    @if (r.Status == MonthlyAttendanceStatus.Locked)
+                    {
+                        <span class="badge badge-danger">Locked</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-success">@r.Status</span>
+                    }
+                </td>
+                <td class="row-actions">
+                    <a class="link" asp-controller="Attendance" asp-action="Month"
+                       asp-route-id="@r.EmployeeId" asp-route-year="@Model.Year" asp-route-month="@Model.Month">Details</a>
+                    @if (Model.CanCloseMonth)
+                    {
+                        <form asp-action="SetEmployeeLock" method="post" class="inline-form">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="employeeId" value="@r.EmployeeId" />
+                            <input type="hidden" name="year" value="@Model.Year" />
+                            <input type="hidden" name="month" value="@Model.Month" />
+                            @if (r.Status == MonthlyAttendanceStatus.Locked)
+                            {
+                                <input type="hidden" name="lockMonth" value="false" />
+                                <button type="submit" class="btn-link unlock"
+                                        onclick="return confirm('Unlock @r.FullName for this month?');">Unlock</button>
+                            }
+                            else
+                            {
+                                <input type="hidden" name="lockMonth" value="true" />
+                                <button type="submit" class="btn-link lock"
+                                        onclick="return confirm('Lock @r.FullName for this month?');">Lock</button>
+                            }
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Rows.Count == 0)
+        {
+            <tr><td colspan="13" class="muted">No data for this period.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+<section class="panel" style="margin-top: 24px;">
+    <h3 style="margin-top:0;">Per-day attendance</h3>
+    <p class="muted">P = Present, W = WFH, H = Half, L = Leave, A = Absent, · = not marked</p>
+    <div class="table-wrap month-day-scroll">
+        <table class="month-day-grid">
+            <thead>
+                <tr>
+                    <th class="sticky-col">Employee</th>
+                    @foreach (var d in Model.DayNumbers)
+                    {
+                        <th class="day-num-col">@d</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td class="sticky-col">
+                        <strong>@r.EmpCode</strong>
+                        <span class="muted"> @r.FullName</span>
+                    </td>
+                    @foreach (var cell in r.Days)
+                    {
+                        var cls = DayClass(cell);
+                        <td class="day-cell @cls" title="@DayTitle(cell, Model.Year, Model.Month)">@DayLetter(cell)</td>
+                    }
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="@(Model.DayNumbers.Count + 1)" class="muted">No employees for this filter.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            var period = document.getElementById('attPeriod');
+            var month = document.getElementById('attMonth');
+            var year = document.getElementById('attYear');
+            function sync() {
+                var parts = period.value.split('-');
+                year.value = parts[0];
+                month.value = parts[1];
+            }
+            sync();
+            period.addEventListener('change', sync);
+        })();
+    </script>
+}
+
+@functions {
+    static string DayLetter(MonthlyDayCell cell)
+    {
+        if (cell.IsWeekend && string.IsNullOrEmpty(cell.Status)) return "";
+        if (cell.IsHoliday && string.IsNullOrEmpty(cell.Status)) return "·";
+        return cell.Status?.ToUpperInvariant() switch
+        {
+            "PRESENT" => "P",
+            "WFH" => "W",
+            "HALFDAY" => "H",
+            "LEAVE" => "L",
+            "ABSENT" => "A",
+            "HOLIDAY" => "·",
+            _ => "·"
+        };
+    }
+
+    static string DayClass(MonthlyDayCell cell)
+    {
+        if (cell.IsWeekend) return "wknd";
+        if (cell.IsHoliday && string.IsNullOrEmpty(cell.Status)) return "hol";
+        return cell.Status?.ToUpperInvariant() switch
+        {
+            "PRESENT" => "present",
+            "WFH" => "wfh",
+            "HALFDAY" => "half",
+            "LEAVE" => "leave",
+            "ABSENT" => "absent",
+            _ => ""
+        };
+    }
+
+    static string DayTitle(MonthlyDayCell cell, int year, int month)
+    {
+        var date = new DateOnly(year, month, cell.Day).ToString("ddd dd MMM");
+        if (cell.MissingOptOut) return $"{date} — Half Day (missed opt-out)";
+        if (!string.IsNullOrEmpty(cell.Status))
+        {
+            var label = cell.Status == "HalfDay" ? "Half Day" : cell.Status;
+            return $"{date} — {label}";
+        }
+        if (cell.IsHoliday) return $"{date} — Holiday";
+        if (cell.IsWeekend) return $"{date} — Weekend";
+        return $"{date} — Not marked";
+    }
+}

@@ -1,0 +1,321 @@
+@model MyAttendanceHomeViewModel
+@{
+    ViewData["Title"] = "My Attendance";
+    ViewData["ActiveNav"] = "attendance-mine";
+    var mark = Model.Today;
+    var month = Model.CurrentMonth;
+    var today = ViewBag.Today as DateOnly? ?? DateOnly.FromDateTime(DateTime.Today);
+    var allowedMonths = ViewBag.AllowedMonths as IReadOnlyList<DateTime> ?? AttendancePeriodHelper.GetAllowedMonths();
+    var isTodaySelected = mark.AttendanceDate == today;
+    var canToggle = !mark.MonthLocked && isTodaySelected && !mark.HasOptedOut;
+
+    var presentCount = month.Days.Count(d => string.Equals(d.Status, DailyAttendanceStatus.Present, StringComparison.OrdinalIgnoreCase));
+    var wfhCount = month.Days.Count(d => string.Equals(d.Status, DailyAttendanceStatus.Wfh, StringComparison.OrdinalIgnoreCase));
+    var halfCount = month.Days.Count(d => string.Equals(d.Status, DailyAttendanceStatus.HalfDay, StringComparison.OrdinalIgnoreCase));
+    var leaveCount = month.Days.Count(d => string.Equals(d.Status, DailyAttendanceStatus.Leave, StringComparison.OrdinalIgnoreCase));
+    var absentCount = month.Days.Count(d => string.Equals(d.Status, DailyAttendanceStatus.Absent, StringComparison.OrdinalIgnoreCase));
+    var workingApprox = month.Days.Count(d => !d.IsWeekend && !d.IsHoliday);
+    var livePercent = workingApprox == 0 ? 0 : Math.Round((presentCount + wfhCount + halfCount * 0.5m) / workingApprox * 100m, 2);
+
+    // Build calendar grid (Monday start)
+    var firstOfMonth = new DateOnly(month.Year, month.Month, 1);
+    var startOffset = ((int)firstOfMonth.DayOfWeek + 6) % 7; // Mon=0 ... Sun=6
+    var daysInMonth = DateTime.DaysInMonth(month.Year, month.Month);
+    var byDate = month.Days.ToDictionary(d => d.Date);
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;My Attendance</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>My Attendance</h2>
+        <p>Pick status, opt in when you start, opt out when you finish</p>
+    </div>
+    <form method="get" class="filters" id="calMonthForm">
+        <input type="hidden" name="year" id="calYear" value="@month.Year" />
+        <input type="hidden" name="month" id="calMonth" value="@month.Month" />
+        <select id="calPeriod" class="period-select">
+            @foreach (var p in allowedMonths)
+            {
+                if (p.Year == month.Year && p.Month == month.Month)
+                {
+                    <option value="@p.Year-@p.Month" selected>@p.ToString("MMMM yyyy")</option>
+                }
+                else
+                {
+                    <option value="@p.Year-@p.Month">@p.ToString("MMMM yyyy")</option>
+                }
+            }
+        </select>
+        <button type="submit" class="btn primary">Go</button>
+    </form>
+</header>
+
+<div class="stats-grid">
+    <div class="stat-card"><span>Present (incl. WFH)</span><strong>@(presentCount + wfhCount)</strong></div>
+    <div class="stat-card"><span>WFH</span><strong>@wfhCount</strong></div>
+    <div class="stat-card"><span>Absent</span><strong>@absentCount</strong></div>
+    <div class="stat-card"><span>Half day</span><strong>@halfCount</strong></div>
+    <div class="stat-card"><span>Leave</span><strong>@leaveCount</strong></div>
+    <div class="stat-card"><span>Attendance %</span><strong>@livePercent.ToString("0.##")</strong></div>
+</div>
+
+<div class="att-calendar-layout">
+    <section class="att-calendar panel">
+        <div class="att-cal-head">
+            <h3>@month.MonthName</h3>
+            <div class="att-cal-legend">
+                <span><i class="dot present"></i> Present</span>
+                <span><i class="dot wfh"></i> WFH</span>
+                <span><i class="dot half"></i> Half</span>
+                <span><i class="dot leave"></i> Leave</span>
+                <span><i class="dot absent"></i> Absent</span>
+                <span><i class="dot holiday"></i> Holiday</span>
+            </div>
+        </div>
+
+        <div class="att-cal-scroll">
+        <div class="att-cal-weekdays">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+        </div>
+
+        <div class="att-cal-grid">
+            @for (var i = 0; i < startOffset; i++)
+            {
+                <div class="att-cal-cell empty"></div>
+            }
+
+            @for (var dayNum = 1; dayNum <= daysInMonth; dayNum++)
+            {
+                var date = new DateOnly(month.Year, month.Month, dayNum);
+                byDate.TryGetValue(date, out var cell);
+                var status = cell?.Status;
+                var isFuture = date > today;
+                var isSelected = date == mark.AttendanceDate;
+                var isToday = date == today;
+                var statusClass = StatusClass(status);
+                if (cell?.IsHoliday == true && string.IsNullOrEmpty(status))
+                {
+                    statusClass = "holiday";
+                }
+                else if (cell?.IsWeekend == true && string.IsNullOrEmpty(status))
+                {
+                    statusClass = "weekend";
+                }
+
+                var canClick = !isFuture && !mark.MonthLocked;
+                var href = Url.Action("Index", new { year = month.Year, month = month.Month, date = date.ToString("yyyy-MM-dd") });
+
+                if (canClick)
+                {
+                    <a class="att-cal-cell day @statusClass @(isSelected ? "selected" : "") @(isToday ? "is-today" : "")"
+                       href="@href">
+                        <span class="day-num">@dayNum</span>
+                        <span class="day-status">@StatusShort(status, cell?.IsHoliday == true, cell?.IsWeekend == true)</span>
+                    </a>
+                }
+                else
+                {
+                    <div class="att-cal-cell day disabled @statusClass @(isToday ? "is-today" : "")">
+                        <span class="day-num">@dayNum</span>
+                        <span class="day-status">@StatusShort(status, cell?.IsHoliday == true, cell?.IsWeekend == true)</span>
+                    </div>
+                }
+            }
+        </div>
+        </div>
+    </section>
+
+    <section class="panel att-mark-panel">
+        <h3>@mark.AttendanceDate.ToString("ddd, dd MMM yyyy")</h3>
+
+        @if (mark.MonthLocked)
+        {
+            <p class="muted">This month is locked. Contact HR to unlock.</p>
+        }
+        else if (mark.AttendanceDate > today)
+        {
+            <p class="muted">Future dates cannot be marked.</p>
+        }
+        else if (!isTodaySelected)
+        {
+            <p class="muted">Marking is only for <strong>today</strong>. Select today on the calendar.</p>
+            @if (!string.IsNullOrEmpty(mark.Status))
+            {
+                <p>Status: <span class="badge @StatusBadgeClass(mark.Status)">@StatusLabel(mark.Status)</span></p>
+            }
+            @if (mark.HasOptedIn)
+            {
+                <p class="muted">Opted in@(mark.HasOptedOut ? " and out" : " (no opt-out — counts as Half Day after the day ends)") for this day.</p>
+            }
+        }
+        else
+        {
+            <div class="opt-toggle-panel">
+                @if (mark.HasOptedOut)
+                {
+                    <p class="opt-state opted-out">Done for today</p>
+                    <p>Status: <span class="badge @StatusBadgeClass(mark.Status)">@StatusLabel(mark.Status)</span></p>
+                    <button type="button" class="btn opt-btn opt-btn-done" disabled>Opted out</button>
+                }
+                else if (mark.HasOptedIn)
+                {
+                    <p class="opt-state opted-in">You are opted in</p>
+                    <p>Status: <span class="badge @StatusBadgeClass(mark.Status)">@StatusLabel(mark.Status)</span></p>
+                    <p class="muted">Click Opt-out when you finish. If you forget, the day becomes Half Day.</p>
+                    <form asp-action="ToggleOptInOut" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn primary opt-btn opt-btn-out"
+                                onclick="return confirm('Opt out for today?');">
+                            Opt-out
+                        </button>
+                    </form>
+                }
+                else if (string.Equals(mark.Status, DailyAttendanceStatus.Leave, StringComparison.OrdinalIgnoreCase))
+                {
+                    <p class="opt-state">Marked as Leave</p>
+                    <p class="muted">No opt-in needed for Leave days.</p>
+                    <button type="button" class="btn opt-btn opt-btn-done" disabled>Leave</button>
+                }
+                else if (canToggle)
+                {
+                    <div class="form-field">
+                        <label for="dayStatus">Status</label>
+                        <select id="dayStatus" name="status" form="optInForm">
+                            @foreach (var s in mark.StatusOptions)
+                            {
+                                var label = s switch
+                                {
+                                    "HalfDay" => "Half Day",
+                                    "WFH" => "WFH",
+                                    _ => s
+                                };
+                                if (string.Equals(s, mark.Status, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <option value="@s" selected>@label</option>
+                                }
+                                else
+                                {
+                                    <option value="@s">@label</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <form id="optInForm" asp-action="ToggleOptInOut" method="post" class="opt-action-form">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn primary opt-btn opt-btn-in" id="optInBtn">Opt-in</button>
+                    </form>
+
+                    <form id="leaveForm" asp-action="MarkOwnStatus" method="post" class="opt-action-form" style="display:none;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="status" value="Leave" />
+                        <button type="submit" class="btn primary opt-btn">Mark Leave</button>
+                    </form>
+                }
+                else
+                {
+                    <p class="muted">Opt-in is not available right now.</p>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var period = document.getElementById('calPeriod');
+            var month = document.getElementById('calMonth');
+            var year = document.getElementById('calYear');
+            function sync() {
+                var parts = period.value.split('-');
+                year.value = parts[0];
+                month.value = parts[1];
+            }
+            if (period) {
+                sync();
+                period.addEventListener('change', sync);
+            }
+
+            var status = document.getElementById('dayStatus');
+            var optInForm = document.getElementById('optInForm');
+            var leaveForm = document.getElementById('leaveForm');
+            var optInBtn = document.getElementById('optInBtn');
+            function syncStatusUi() {
+                if (!status || !optInForm || !leaveForm) return;
+                var isLeave = status.value === 'Leave';
+                optInForm.style.display = isLeave ? 'none' : '';
+                leaveForm.style.display = isLeave ? '' : 'none';
+                if (optInBtn && !isLeave) {
+                    optInBtn.textContent = 'Opt-in';
+                }
+            }
+            if (status) {
+                status.addEventListener('change', syncStatusUi);
+                syncStatusUi();
+            }
+        })();
+    </script>
+}
+
+@functions {
+    static string StatusLabel(string? status) => status switch
+    {
+        "HalfDay" => "Half Day",
+        "WFH" => "WFH",
+        _ => status ?? "—"
+    };
+
+    static string StatusBadgeClass(string? status) => status?.ToUpperInvariant() switch
+    {
+        "PRESENT" => "badge-success",
+        "WFH" => "badge-info",
+        "HALFDAY" => "badge-warning",
+        "LEAVE" => "badge-muted",
+        "ABSENT" => "badge-danger",
+        "HOLIDAY" => "badge-muted",
+        _ => "badge-muted"
+    };
+
+    static string StatusClass(string? status) => status?.ToUpperInvariant() switch
+    {
+        "PRESENT" => "present",
+        "WFH" => "wfh",
+        "HALFDAY" => "half",
+        "LEAVE" => "leave",
+        "ABSENT" => "absent",
+        "HOLIDAY" => "holiday",
+        _ => ""
+    };
+
+    static string StatusShort(string? status, bool isHoliday, bool isWeekend)
+    {
+        if (!string.IsNullOrEmpty(status))
+        {
+            return status.ToUpperInvariant() switch
+            {
+                "PRESENT" => "P",
+                "WFH" => "WFH",
+                "HALFDAY" => "H",
+                "LEAVE" => "L",
+                "ABSENT" => "A",
+                "HOLIDAY" => "Hol",
+                _ => status[..Math.Min(3, status.Length)]
+            };
+        }
+
+        if (isHoliday) return "Hol";
+        if (isWeekend) return "";
+        return "";
+    }
+}

@@ -1,0 +1,177 @@
+@model EmployeeEditViewModel
+@{
+    var isNew = Model.EmployeeId == 0;
+    ViewData["Title"] = isNew ? "Add Employee" : "Edit Employee";
+    ViewData["ActiveNav"] = "attendance-employees";
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Employees&nbsp;/&nbsp;@(isNew ? "Add" : "Edit")</nav>
+
+<header class="page-header">
+    <h2>@(isNew ? "Add employee" : "Edit employee")</h2>
+</header>
+
+<section class="form-section">
+    <form method="post" asp-action="@(isNew ? "Create" : "Edit")">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="EmployeeId" />
+        <div asp-validation-summary="ModelOnly" class="alert"></div>
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="Department"></label>
+                <select name="Department" id="Department">
+                    <option value="">— Select department —</option>
+                    @foreach (var d in Model.Departments)
+                    {
+                        if (string.Equals(Model.Department, d.Name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@d.Name" selected>@d.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@d.Name">@d.Name</option>
+                        }
+                    }
+                </select>
+                @if (Model.Departments.Count == 0)
+                {
+                    <span class="field-error">No departments found. Add them under Attendance → Departments.</span>
+                }
+            </div>
+            <div class="form-field">
+                <label asp-for="EmpCode"></label>
+                @if (isNew)
+                {
+                    <input asp-for="EmpCode" id="EmpCode" readonly placeholder="Select department first" />
+                }
+                else
+                {
+                    <input asp-for="EmpCode" readonly />
+                }
+                <span asp-validation-for="EmpCode" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Username"></label>
+                <input asp-for="Username" autocomplete="off" />
+                <span asp-validation-for="Username" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="FirstName"></label>
+                <input asp-for="FirstName" />
+            </div>
+            <div class="form-field">
+                <label asp-for="LastName"></label>
+                <input asp-for="LastName" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Phone"></label>
+                <input asp-for="Phone" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Designation"></label>
+                <select name="Designation" id="Designation">
+                    <option value="">— Select designation —</option>
+                    @foreach (var d in Model.Designations)
+                    {
+                        if (string.Equals(Model.Designation, d.Name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <option value="@d.Name" selected>@d.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@d.Name">@d.Name</option>
+                        }
+                    }
+                </select>
+                @if (Model.Designations.Count == 0)
+                {
+                    <span class="field-error">No designations found. Add them under Attendance → Designations.</span>
+                }
+            </div>
+            <div class="form-field">
+                <label asp-for="RoleId"></label>
+                <select asp-for="RoleId">
+                    @foreach (var r in Model.Roles)
+                    {
+                        <option value="@r.RoleId">@r.DisplayName</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="TeamId"></label>
+                <select asp-for="TeamId">
+                    <option value="">— None —</option>
+                    @foreach (var t in Model.Teams)
+                    {
+                        <option value="@t.TeamId">@t.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="ReportingLeadId"></label>
+                <select asp-for="ReportingLeadId">
+                    <option value="">— None —</option>
+                    @foreach (var l in Model.Leads)
+                    {
+                        <option value="@l.EmployeeId">@l.Display</option>
+                    }
+                </select>
+            </div>
+            <div class="form-field">
+                <label asp-for="JoinDate"></label>
+                <input asp-for="JoinDate" type="date" />
+            </div>
+            <input type="hidden" asp-for="CrmUserId" />
+            <div class="form-field">
+                <label asp-for="Password"></label>
+                <input asp-for="Password" autocomplete="new-password" placeholder="@(isNew ? "Required" : "Leave blank to keep")"/>
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label class="remember">
+                    <input asp-for="IsActive" />
+                    <span>Active</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="margin-top: 18px; display: flex; gap: 10px;">
+            <button type="submit" class="btn primary">Save</button>
+            <a class="btn" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (isNew)
+    {
+        <script>
+            (function () {
+                var dept = document.getElementById('Department');
+                var code = document.getElementById('EmpCode');
+                if (!dept || !code) return;
+
+                function refreshCode() {
+                    var name = dept.value;
+                    if (!name) {
+                        code.value = '';
+                        return;
+                    }
+                    fetch('@Url.Action("NextEmpCode", "Employees")?department=' + encodeURIComponent(name))
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) { code.value = data.code || ''; })
+                        .catch(function () { code.value = ''; });
+                }
+
+                dept.addEventListener('change', refreshCode);
+                if (dept.value) refreshCode();
+            })();
+        </script>
+    }
+}

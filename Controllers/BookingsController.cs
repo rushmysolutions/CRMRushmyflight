@@ -11,23 +11,23 @@ namespace RushMyBookings.Crm.Controllers;
 public class BookingsController(ICrmDataService dataService, IBookingFileService fileService) : CrmControllerBase(dataService)
 {
     [HttpGet]
-    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    public async Task<IActionResult> Create()
     {
-        var model = await BuildCreateViewModelAsync(cancellationToken);
+        var model = await BuildCreateViewModelAsync();
         return View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateBookingViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(CreateBookingViewModel model)
     {
-        model.BookingTypes = await DataService.GetBookingTypesAsync(cancellationToken);
+        model.BookingTypes = await DataService.GetBookingTypesAsync();
 
         if (!ValidateBookingForm(model))
         {
             if (string.IsNullOrWhiteSpace(model.ReferenceNo))
             {
-                model.ReferenceNo = await DataService.GenerateNextReferenceNoAsync(cancellationToken);
+                model.ReferenceNo = await DataService.GenerateNextReferenceNoAsync();
             }
 
             return View(model);
@@ -37,7 +37,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
         try
         {
-            var (_, referenceNo) = await DataService.CreateBookingAsync(model, userId, cancellationToken);
+            var (_, referenceNo) = await DataService.CreateBookingAsync(model, userId);
             TempData["BookingCreated"] = referenceNo;
             return RedirectToAction(nameof(Index));
         }
@@ -52,16 +52,16 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
         if (string.IsNullOrWhiteSpace(model.ReferenceNo))
         {
-            model.ReferenceNo = await DataService.GenerateNextReferenceNoAsync(cancellationToken);
+            model.ReferenceNo = await DataService.GenerateNextReferenceNoAsync();
         }
 
         return View(model);
     }
 
     [HttpGet]
-    public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(int id)
     {
-        var model = await DataService.GetBookingForEditAsync(id, cancellationToken);
+        var model = await DataService.GetBookingForEditAsync(id);
         if (model is null)
         {
             return NotFound();
@@ -72,9 +72,9 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(CreateBookingViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(CreateBookingViewModel model)
     {
-        model.BookingTypes = await DataService.GetBookingTypesAsync(cancellationToken);
+        model.BookingTypes = await DataService.GetBookingTypesAsync();
 
         if (model.BookId is not > 0)
         {
@@ -90,7 +90,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
         try
         {
-            var updated = await DataService.UpdateBookingAsync(model, userId, cancellationToken);
+            var updated = await DataService.UpdateBookingAsync(model, userId);
             if (!updated)
             {
                 return NotFound();
@@ -118,8 +118,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         int id,
         IFormFile[] files,
         string? returnTo = null,
-        int page = 1,
-        CancellationToken cancellationToken = default)
+        int page = 1)
     {
         if (files.Length == 0 || files.All(f => f.Length == 0))
         {
@@ -129,7 +128,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
         try
         {
-            var count = await fileService.AddAttachmentsAsync(id, files, cancellationToken);
+            var count = await fileService.AddAttachmentsAsync(id, files);
             if (count == 0)
             {
                 TempData["UploadError"] = "Upload failed. Booking not found or files were empty.";
@@ -170,12 +169,12 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         return PhysicalFile(path, contentType, Path.GetFileName(file));
     }
 
-    private async Task<CreateBookingViewModel> BuildCreateViewModelAsync(CancellationToken cancellationToken)
+    private async Task<CreateBookingViewModel> BuildCreateViewModelAsync()
     {
         return new CreateBookingViewModel
         {
-            ReferenceNo = await DataService.GenerateNextReferenceNoAsync(cancellationToken),
-            BookingTypes = await DataService.GetBookingTypesAsync(cancellationToken),
+            ReferenceNo = await DataService.GenerateNextReferenceNoAsync(),
+            BookingTypes = await DataService.GetBookingTypesAsync(),
             BookingType = "1",
             Passengers = [new PassengerFormModel()]
         };
@@ -210,8 +209,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         string? lastFourCc = null,
         string? dateFrom = null,
         string? dateTo = null,
-        string? type = null,
-        CancellationToken cancellationToken = default)
+        string? type = null)
     {
         var filter = new BookingSearchFilter
         {
@@ -226,12 +224,12 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
             Type = type
         };
 
-        var bookingTypes = await DataService.GetBookingTypesAsync(cancellationToken);
+        var bookingTypes = await DataService.GetBookingTypesAsync();
         var typeLookup = bookingTypes
             .Where(t => int.TryParse(t.Id, out _))
             .ToDictionary(t => int.Parse(t.Id!), t => t.Name ?? "Unknown");
 
-        var bookings = await DataService.GetBookingsAsync(page, pageSize, filter, typeLookup, cancellationToken);
+        var bookings = await DataService.GetBookingsAsync(page, pageSize, filter, typeLookup);
 
         var model = new BookingsIndexViewModel
         {
@@ -244,9 +242,9 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         return View(model);
     }
 
-    public async Task<IActionResult> Details(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Details(int id)
     {
-        var booking = await DataService.GetBookingByIdAsync(id, cancellationToken);
+        var booking = await DataService.GetBookingByIdAsync(id);
         if (booking is null)
         {
             return NotFound();
@@ -259,10 +257,9 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         int id,
         int page = 1,
         string? search = null,
-        string? type = null,
-        CancellationToken cancellationToken = default)
+        string? type = null)
     {
-        var model = await DataService.GetBookingCommentsAsync(id, cancellationToken);
+        var model = await DataService.GetBookingCommentsAsync(id);
         if (model is null)
         {
             return NotFound();
@@ -282,8 +279,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         string returnTo = "comments",
         int returnPage = 1,
         string? returnSearch = null,
-        string? returnType = null,
-        CancellationToken cancellationToken = default)
+        string? returnType = null)
     {
         if (string.IsNullOrWhiteSpace(newComment))
         {
@@ -295,7 +291,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
         try
         {
-            var saved = await DataService.AddBookingCommentAsync(id, userId, newComment, cancellationToken);
+            var saved = await DataService.AddBookingCommentAsync(id, userId, newComment);
             if (!saved)
             {
                 TempData["CommentError"] = "Could not save the comment. Check that the booking exists.";

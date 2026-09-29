@@ -15,14 +15,14 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
     private static readonly TimeSpan DbConnectedCacheTtl = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan DashboardStatsCacheTtl = TimeSpan.FromMinutes(3);
 
-    public async Task<bool> CanConnectAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> CanConnectAsync()
     {
         if (cache.TryGetValue(DbConnectedCacheKey, out bool cached))
         {
             return cached;
         }
 
-        var connected = await ProbeDatabaseConnectionAsync(cancellationToken);
+        var connected = await ProbeDatabaseConnectionAsync();
         cache.Set(
             DbConnectedCacheKey,
             connected,
@@ -31,24 +31,24 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         return connected;
     }
 
-    public async Task<DashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default)
+    public async Task<DashboardStats> GetDashboardStatsAsync()
     {
         if (cache.TryGetValue(DashboardStatsCacheKey, out DashboardStats? cached) && cached is not null)
         {
             return cached;
         }
 
-        var stats = await LoadDashboardStatsAsync(cancellationToken);
+        var stats = await LoadDashboardStatsAsync();
         cache.Set(DashboardStatsCacheKey, stats, DashboardStatsCacheTtl);
         cache.Set(DbConnectedCacheKey, true, DbConnectedCacheTtl);
         return stats;
     }
 
-    private async Task<bool> ProbeDatabaseConnectionAsync(CancellationToken cancellationToken)
+    private async Task<bool> ProbeDatabaseConnectionAsync()
     {
         try
         {
-            return await db.Database.CanConnectAsync(cancellationToken);
+            return await db.Database.CanConnectAsync();
         }
         catch
         {
@@ -56,7 +56,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }
     }
 
-    private async Task<DashboardStats> LoadDashboardStatsAsync(CancellationToken cancellationToken)
+    private async Task<DashboardStats> LoadDashboardStatsAsync()
     {
         var counts = await db.Database.SqlQuery<DashboardCountsRow>($"""
             SELECT
@@ -67,10 +67,10 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 (SELECT COUNT(*) FROM tbl_users WHERE user_status = '1') AS TotalAgents,
                 (SELECT COUNT(*) FROM tbl_book_coments) AS TotalComments
             """)
-            .FirstAsync(cancellationToken);
+            .FirstAsync();
 
         var typeLookup = await db.BookingTypes.AsNoTracking()
-            .ToDictionaryAsync(t => t.TypeId.ToString(), t => t.TypeName ?? "Unknown", cancellationToken);
+            .ToDictionaryAsync(t => t.TypeId.ToString(), t => t.TypeName ?? "Unknown");
 
         var bookingsByType = await db.Bookings.AsNoTracking()
             .Where(b => b.IsHide == 0)
@@ -78,7 +78,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             .Select(g => new { BookingType = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
             .Take(12)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var byType = bookingsByType
             .Select(x => new BookingTypeCount
@@ -95,7 +95,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             .OrderByDescending(x => x.Month)
             .Take(12)
             .OrderBy(x => x.Month)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         return new DashboardStats
         {
@@ -114,8 +114,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         int page,
         int pageSize,
         BookingSearchFilter filter,
-        IReadOnlyDictionary<int, string>? typeLookup = null,
-        CancellationToken cancellationToken = default)
+        IReadOnlyDictionary<int, string>? typeLookup = null)
     {
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -177,7 +176,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             query = query.Where(b => b.BookingType == filter.Type.Trim());
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        var totalCount = await query.CountAsync();
 
         var bookings = await query
             .OrderByDescending(b => b.BookId)
@@ -208,10 +207,10 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 b.FollowUpBy,
                 b.FollowUpDate
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         typeLookup ??= await db.BookingTypes.AsNoTracking()
-            .ToDictionaryAsync(t => t.TypeId, t => t.TypeName ?? "Unknown", cancellationToken);
+            .ToDictionaryAsync(t => t.TypeId, t => t.TypeName ?? "Unknown");
 
         var userIds = bookings
             .SelectMany(b => new[] { b.AssignedUser, b.CreatedBy })
@@ -224,7 +223,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             ? new Dictionary<int, string?>()
             : await db.Users.AsNoTracking()
                 .Where(u => userIds.Contains(u.UserId))
-                .ToDictionaryAsync(u => u.UserId, u => u.Username, cancellationToken);
+                .ToDictionaryAsync(u => u.UserId, u => u.Username);
 
         var bookIds = bookings.Select(b => b.BookId).ToList();
         var bookIdStrings = bookIds.Select(id => id.ToString()).ToList();
@@ -234,14 +233,14 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 .Where(c => bookIdStrings.Contains(c.BookingId))
                 .GroupBy(c => c.BookingId)
                 .Select(g => new { BookingId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.BookingId, x => x.Count, cancellationToken);
+                .ToDictionaryAsync(x => x.BookingId, x => x.Count);
 
         var attachmentRows = bookIds.Count == 0
             ? []
             : await db.Attachments.AsNoTracking()
                 .Where(a => bookIds.Contains(a.BookingId))
                 .Select(a => new { a.BookingId, a.AttachFiles })
-                .ToListAsync(cancellationToken);
+                .ToListAsync();
 
         var attachmentCounts = attachmentRows
             .GroupBy(a => a.BookingId)
@@ -304,10 +303,10 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         };
     }
 
-    public async Task<BookingDetail?> GetBookingByIdAsync(int bookId, CancellationToken cancellationToken = default)
+    public async Task<BookingDetail?> GetBookingByIdAsync(int bookId)
     {
         var booking = await db.Bookings.AsNoTracking()
-            .FirstOrDefaultAsync(b => b.BookId == bookId, cancellationToken);
+            .FirstOrDefaultAsync(b => b.BookId == bookId);
 
         if (booking is null)
         {
@@ -318,7 +317,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         var typeName = await db.BookingTypes.AsNoTracking()
             .Where(t => t.TypeId == typeId)
             .Select(t => t.TypeName)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         var userIds = new List<int>();
         var assignedUserId = 0;
@@ -345,7 +344,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             ? new Dictionary<int, string?>()
             : await db.Users.AsNoTracking()
                 .Where(u => userIds.Contains(u.UserId))
-                .ToDictionaryAsync(u => u.UserId, u => u.Username, cancellationToken);
+                .ToDictionaryAsync(u => u.UserId, u => u.Username);
 
         userLookup.TryGetValue(assignedUserId, out var assignedUserName);
         userLookup.TryGetValue(createdById, out var createdByName);
@@ -368,17 +367,17 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 Gender = p.Gender,
                 TicketNo = p.TicketNo
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var bookIdKey = bookId.ToString();
         var commentCount = await db.Comments.AsNoTracking()
-            .CountAsync(c => c.BookingId == bookIdKey, cancellationToken);
-        var comments = await LoadCommentsForBookingAsync(bookIdKey, 50, cancellationToken);
+            .CountAsync(c => c.BookingId == bookIdKey);
+        var comments = await LoadCommentsForBookingAsync(bookIdKey, 50);
 
         var attachmentRows = await db.Attachments.AsNoTracking()
             .Where(a => a.BookingId == bookId)
             .Select(a => a.AttachFiles)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var attachments = attachmentRows
             .SelectMany(ParseAttachmentFileNames)
@@ -474,12 +473,12 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         return ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp";
     }
 
-    public async Task<BookingCommentsViewModel?> GetBookingCommentsAsync(int bookId, CancellationToken cancellationToken = default)
+    public async Task<BookingCommentsViewModel?> GetBookingCommentsAsync(int bookId)
     {
         var header = await db.Bookings.AsNoTracking()
             .Where(b => b.BookId == bookId)
             .Select(b => new { b.BookId, b.ReferenceNo, b.CustomerName })
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         if (header is null)
         {
@@ -487,7 +486,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }
 
         var bookIdKey = bookId.ToString();
-        var comments = await LoadCommentsForBookingAsync(bookIdKey, 200, cancellationToken);
+        var comments = await LoadCommentsForBookingAsync(bookIdKey, 200);
 
         return new BookingCommentsViewModel
         {
@@ -501,8 +500,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
     public async Task<bool> AddBookingCommentAsync(
         int bookId,
         string userId,
-        string comment,
-        CancellationToken cancellationToken = default)
+        string comment)
     {
         var trimmed = comment.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
@@ -511,7 +509,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }
 
         var exists = await db.Bookings.AsNoTracking()
-            .AnyAsync(b => b.BookId == bookId, cancellationToken);
+            .AnyAsync(b => b.BookId == bookId);
 
         if (!exists)
         {
@@ -524,7 +522,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO tbl_book_coments (bookingid, username, commentarea, createddate)
             VALUES ({bookingIdKey}, {userId}, {trimmed}, {createdDate})
-            """, cancellationToken);
+            """);
 
         cache.Remove(DashboardStatsCacheKey);
         return true;
@@ -532,8 +530,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
 
     private async Task<List<BookingComment>> LoadCommentsForBookingAsync(
         string bookIdKey,
-        int take,
-        CancellationToken cancellationToken)
+        int take)
     {
         var comments = await db.Comments.AsNoTracking()
             .Where(c => c.BookingId == bookIdKey)
@@ -546,15 +543,14 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 Comment = c.Comment,
                 CreatedDate = c.CreatedDate
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
-        await ResolveCommentAuthorsAsync(comments, cancellationToken);
+        await ResolveCommentAuthorsAsync(comments);
         return comments;
     }
 
     private async Task ResolveCommentAuthorsAsync(
-        List<BookingComment> comments,
-        CancellationToken cancellationToken)
+        List<BookingComment> comments)
     {
         var authorIds = comments
             .Select(c => c.Username)
@@ -577,8 +573,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             .Where(u => authorIds.Contains(u.UserId))
             .ToDictionaryAsync(
                 u => u.UserId.ToString(),
-                u => u.Username ?? u.Email ?? u.UserId.ToString(),
-                cancellationToken);
+                u => u.Username ?? u.Email ?? u.UserId.ToString());
 
         foreach (var comment in comments)
         {
@@ -594,18 +589,18 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }
     }
 
-    public async Task<IReadOnlyList<AgentSummary>> GetAgentsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AgentSummary>> GetAgentsAsync()
     {
         var users = await db.Users.AsNoTracking()
             .Where(u => u.Status == "1")
             .OrderBy(u => u.Username)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var bookingCounts = await db.Bookings.AsNoTracking()
             .Where(b => b.AssignedUser != null && b.AssignedUser != "")
             .GroupBy(b => b.AssignedUser!)
             .Select(g => new { AssignedUser = g.Key, Count = g.Count() })
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var countLookup = bookingCounts.ToDictionary(x => x.AssignedUser, x => x.Count);
 
@@ -626,7 +621,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             .ToList();
     }
 
-    public async Task<UserAccount?> ValidateUserAsync(string login, string password, CancellationToken cancellationToken = default)
+    public async Task<UserAccount?> ValidateUserAsync(string login, string password)
     {
         var trimmedLogin = login.Trim();
         var user = await db.Users.AsNoTracking()
@@ -641,7 +636,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 u.UserType,
                 u.PasswordHash
             })
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync();
 
         if (user is null || !PasswordHasher.Verify(password, user.PasswordHash))
         {
@@ -651,7 +646,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         var now = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         await db.Users
             .Where(u => u.UserId == user.UserId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastLogin, now), cancellationToken);
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastLogin, now));
 
         cache.Set(DbConnectedCacheKey, true, DbConnectedCacheTtl);
 
@@ -666,15 +661,15 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         };
     }
 
-    public Task UpdateLastLoginAsync(int userId, CancellationToken cancellationToken = default)
+    public Task UpdateLastLoginAsync(int userId)
     {
         var now = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         return db.Users
             .Where(u => u.UserId == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastLogin, now), cancellationToken);
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastLogin, now));
     }
 
-    public async Task<IReadOnlyList<BookingTypeOption>> GetBookingTypesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BookingTypeOption>> GetBookingTypesAsync()
     {
         return await db.BookingTypes.AsNoTracking()
             .Where(t => t.Status == 1)
@@ -684,15 +679,15 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 Id = t.TypeId.ToString(),
                 Name = t.TypeName
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
     }
 
-    public async Task<string> GenerateNextReferenceNoAsync(CancellationToken cancellationToken = default)
+    public async Task<string> GenerateNextReferenceNoAsync()
     {
         var refs = await db.Bookings.AsNoTracking()
             .Where(b => b.ReferenceNo != null && b.ReferenceNo.StartsWith("RMF"))
             .Select(b => b.ReferenceNo!)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         long max = 7_000_000;
         foreach (var reference in refs)
@@ -710,8 +705,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
 
     public async Task<(int BookId, string ReferenceNo)> CreateBookingAsync(
         CreateBookingViewModel model,
-        string userId,
-        CancellationToken cancellationToken = default)
+        string userId)
     {
         var passengers = model.Passengers
             .Where(p => !string.IsNullOrWhiteSpace(p.FirstName) ||
@@ -724,7 +718,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }
 
         var referenceNo = string.IsNullOrWhiteSpace(model.ReferenceNo)
-            ? await GenerateNextReferenceNoAsync(cancellationToken)
+            ? await GenerateNextReferenceNoAsync()
             : model.ReferenceNo.Trim();
 
         var createdDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -783,7 +777,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         };
 
         db.Bookings.Add(booking);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync();
 
         foreach (var passenger in passengers)
         {
@@ -799,21 +793,21 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             });
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync();
 
         if (!string.IsNullOrWhiteSpace(model.Comment))
         {
-            await AddBookingCommentAsync(booking.BookId, userId, model.Comment, cancellationToken);
+            await AddBookingCommentAsync(booking.BookId, userId, model.Comment);
         }
 
         cache.Remove(DashboardStatsCacheKey);
         return (booking.BookId, referenceNo);
     }
 
-    public async Task<CreateBookingViewModel?> GetBookingForEditAsync(int bookId, CancellationToken cancellationToken = default)
+    public async Task<CreateBookingViewModel?> GetBookingForEditAsync(int bookId)
     {
         var booking = await db.Bookings.AsNoTracking()
-            .FirstOrDefaultAsync(b => b.BookId == bookId, cancellationToken);
+            .FirstOrDefaultAsync(b => b.BookId == bookId);
 
         if (booking is null)
         {
@@ -823,9 +817,9 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         var passengers = await db.Passengers.AsNoTracking()
             .Where(p => p.BookingId == bookId)
             .OrderBy(p => p.PassId)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
-        var bookingTypes = await GetBookingTypesAsync(cancellationToken);
+        var bookingTypes = await GetBookingTypesAsync();
 
         return new CreateBookingViewModel
         {
@@ -888,8 +882,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
 
     public async Task<bool> UpdateBookingAsync(
         CreateBookingViewModel model,
-        string userId,
-        CancellationToken cancellationToken = default)
+        string userId)
     {
         if (model.BookId is not > 0)
         {
@@ -897,7 +890,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }
 
         var booking = await db.Bookings
-            .FirstOrDefaultAsync(b => b.BookId == model.BookId, cancellationToken);
+            .FirstOrDefaultAsync(b => b.BookId == model.BookId);
 
         if (booking is null)
         {
@@ -967,7 +960,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
 
         var existingPassengers = await db.Passengers
             .Where(p => p.BookingId == booking.BookId)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var submittedIds = passengers
             .Where(p => p.PassId > 0)
@@ -1008,11 +1001,11 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             }
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync();
 
         if (!string.IsNullOrWhiteSpace(model.Comment))
         {
-            await AddBookingCommentAsync(booking.BookId, userId, model.Comment, cancellationToken);
+            await AddBookingCommentAsync(booking.BookId, userId, model.Comment);
         }
 
         cache.Remove(DashboardStatsCacheKey);
@@ -1068,13 +1061,12 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
     }
     public async Task<IReadOnlyList<AgentPerformanceViewModel>> GetAgentPerformanceAsync(
     DateTime? fromDate,
-    DateTime? toDate,
-    CancellationToken cancellationToken = default)
+    DateTime? toDate)
     {
         var users = await db.Users.AsNoTracking()
             .Where(u => u.Status == "1")
             .OrderBy(u => u.Username)
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var bookings = db.Bookings.AsNoTracking()
             .Where(b => !string.IsNullOrEmpty(b.AssignedUser));
@@ -1105,7 +1097,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 GrossMco = g.Sum(x => x.McoAmount),
                 NetMco = g.Sum(x => x.NetMco)
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync();
 
         var lookup = bookingSummary.ToDictionary(x => x.AssignedUser);
 

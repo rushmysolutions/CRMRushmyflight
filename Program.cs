@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using RushMyBookings.Crm.Data;
+using RushMyBookings.Crm.Middleware;
 using RushMyBookings.Crm.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,9 +34,23 @@ builder.Services.AddDbContext<CrmDbContext>(options =>
     options.UseMySql(connectionString, serverVersion, mySqlOptions =>
         mySqlOptions.EnableRetryOnFailure(maxRetryCount: 3)));
 
+var attendanceCs = builder.Configuration.GetConnectionString("AttendanceSqlServer");
+if (string.IsNullOrWhiteSpace(attendanceCs))
+{
+    throw new InvalidOperationException("Missing ConnectionStrings:AttendanceSqlServer in configuration.");
+}
+
+Console.WriteLine("Attendance database: SQL Server");
+
+builder.Services.AddDbContext<AttendanceDbContext>(options =>
+    options.UseSqlServer(attendanceCs, sql => sql.EnableRetryOnFailure(maxRetryCount: 3)));
+
 builder.Services.AddScoped<ICrmDataService, CrmDataService>();
 builder.Services.AddScoped<IBookingFileService, BookingFileService>();
+builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<IIpAccessService, IpAccessService>();
 builder.Services.AddHostedService<DatabaseWarmupHostedService>();
+builder.Services.AddHostedService<AttendanceAutoLockHostedService>();
 
 var app = builder.Build();
 
@@ -54,6 +69,9 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+// After auth so System Administrator can skip device + IP rules
+app.UseDeviceRestriction();
+app.UseIpRestriction();
 
 app.MapControllerRoute(
     name: "default",
