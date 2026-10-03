@@ -15,6 +15,9 @@ public interface IAttendanceService
 
     Task<IReadOnlyList<EmployeeListItem>> GetEmployeesAsync(string? search = null);
 
+    /// <summary>Light list for dropdowns (id + code/name only).</summary>
+    Task<IReadOnlyList<EmployeeOption>> GetEmployeeFilterOptionsAsync();
+
     Task<IReadOnlyList<TeamOption>> GetTeamsAsync();
 
     Task<IReadOnlyList<DesignationOption>> GetDesignationsAsync();

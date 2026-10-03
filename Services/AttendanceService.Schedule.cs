@@ -300,7 +300,6 @@ public partial class AttendanceService
     /// <summary>All week-off dates for one employee in a date range (schedule + roster).</summary>
     public async Task<HashSet<DateOnly>> GetWeekOffDatesAsync(int employeeId, DateOnly from, DateOnly to)
     {
-        var result = new HashSet<DateOnly>();
         var emp = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
         var empSched = await db.EmployeeSchedules.AsNoTracking()
             .FirstOrDefaultAsync(s => s.EmployeeId == employeeId);
@@ -317,7 +316,19 @@ public partial class AttendanceService
         var roster = await db.RosterEntries.AsNoTracking()
             .Where(r => r.EmployeeId == employeeId && r.RosterDate >= from && r.RosterDate <= to)
             .ToListAsync();
-        var rosterByDate = roster.ToDictionary(r => r.RosterDate);
+
+        return BuildWeekOffDates(from, to, mask, roster);
+    }
+
+    /// <summary>Pure in-memory week-off calendar (no DB). Used by fast roster/monthly batch loads.</summary>
+    internal static HashSet<DateOnly> BuildWeekOffDates(
+        DateOnly from,
+        DateOnly to,
+        byte weekOffMask,
+        IEnumerable<RosterEntry> rosterRows)
+    {
+        var rosterByDate = rosterRows.ToDictionary(r => r.RosterDate);
+        var result = new HashSet<DateOnly>();
 
         for (var d = from; d <= to; d = d.AddDays(1))
         {
@@ -328,11 +339,10 @@ public partial class AttendanceService
                     result.Add(d);
                 }
 
-                // Forced Work → not a week-off
-                continue;
+                continue; // Work override → not off
             }
 
-            if (WeekOffDays.IsOff(mask, d.DayOfWeek))
+            if (WeekOffDays.IsOff(weekOffMask, d.DayOfWeek))
             {
                 result.Add(d);
             }

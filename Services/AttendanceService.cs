@@ -1102,6 +1102,24 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
         };
     }
 
+    public async Task<IReadOnlyList<EmployeeOption>> GetEmployeeFilterOptionsAsync()
+    {
+        // Small projection for Monthly dropdown — not the full employee list page query.
+        return await db.Employees.AsNoTracking()
+            .Where(e => e.IsActive
+                        && e.Role != null
+                        && e.Role.Code != AttendanceRoles.Admin
+                        && e.Role.Code != AttendanceRoles.SystemAdministrator)
+            .OrderBy(e => e.EmpCode)
+            .Select(e => new EmployeeOption
+            {
+                EmployeeId = e.EmployeeId,
+                Display = (e.EmpCode ?? "") + " - " + (e.FirstName ?? "")
+                    + (e.LastName == null || e.LastName == "" ? "" : " " + e.LastName)
+            })
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<TeamAttendanceRow>> GetTeamAttendanceAsync(
         int leadEmployeeId,
         int? teamId,
@@ -1109,8 +1127,8 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
         bool canViewAll,
         string? search = null)
     {
-        var employees = db.Employees.AsNoTracking()
-            .Include(e => e.Team)
+        // Two queries total: employees + that day's punches.
+        var empQuery = db.Employees.AsNoTracking()
             .Where(e => e.IsActive
                         && e.Role != null
                         && e.Role.Code != AttendanceRoles.Admin
@@ -1118,7 +1136,7 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
 
         if (!canViewAll)
         {
-            employees = employees.Where(e =>
+            empQuery = empQuery.Where(e =>
                 e.ReportingLeadId == leadEmployeeId ||
                 (e.Team != null && e.Team.LeadEmployeeId == leadEmployeeId) ||
                 e.EmployeeId == leadEmployeeId);
@@ -1126,35 +1144,52 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
 
         if (teamId.HasValue)
         {
-            employees = employees.Where(e => e.TeamId == teamId);
+            empQuery = empQuery.Where(e => e.TeamId == teamId);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var q = search.Trim();
-            employees = employees.Where(e =>
-                e.EmpCode.Contains(q) ||
-                e.FirstName.Contains(q) ||
-                (e.LastName != null && e.LastName.Contains(q)) ||
-                (e.FirstName + " " + (e.LastName ?? "")).Contains(q));
+            empQuery = empQuery.Where(e =>
+                (e.EmpCode != null && e.EmpCode.Contains(q)) ||
+                (e.FirstName != null && e.FirstName.Contains(q)) ||
+                (e.LastName != null && e.LastName.Contains(q)));
         }
 
-        var list = await employees.OrderBy(e => e.EmpCode).ToListAsync();
-        var ids = list.Select(e => e.EmployeeId).ToList();
+        var list = await empQuery
+            .OrderBy(e => e.EmpCode)
+            .Select(e => new
+            {
+                e.EmployeeId,
+                EmpCode = e.EmpCode ?? "",
+                FullName = e.LastName == null || e.LastName == ""
+                    ? (e.FirstName ?? "")
+                    : (e.FirstName ?? "") + " " + e.LastName,
+                TeamName = e.Team != null ? e.Team.Name : null
+            })
+            .ToListAsync();
 
+        if (list.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = list.Select(e => e.EmployeeId).ToList();
         var attendance = await db.DailyAttendances.AsNoTracking()
             .Where(a => a.AttendanceDate == date && ids.Contains(a.EmployeeId))
-            .ToDictionaryAsync(a => a.EmployeeId);
+            .Select(a => new { a.EmployeeId, a.Status, a.OptInTime, a.OptOutTime })
+            .ToListAsync();
+        var byEmp = attendance.ToDictionary(a => a.EmployeeId);
 
         return list.Select(e =>
         {
-            attendance.TryGetValue(e.EmployeeId, out var a);
+            byEmp.TryGetValue(e.EmployeeId, out var a);
             return new TeamAttendanceRow
             {
                 EmployeeId = e.EmployeeId,
                 EmpCode = e.EmpCode,
                 FullName = e.FullName,
-                TeamName = e.Team?.Name,
+                TeamName = e.TeamName,
                 Status = a?.Status,
                 OptIn = a?.OptInTime,
                 OptOut = a?.OptOutTime
@@ -1171,9 +1206,8 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
         bool canViewTeam,
         string? search = null)
     {
-        // Prefer stored monthly rows; if missing, compute live for display (not locked).
+        // ---- 1) Employees (one query) ----
         var employeeQuery = db.Employees.AsNoTracking()
-            .Include(e => e.Team)
             .Where(e => e.IsActive
                         && e.Role != null
                         && e.Role.Code != AttendanceRoles.Admin
@@ -1200,23 +1234,48 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
         {
             var q = search.Trim();
             employeeQuery = employeeQuery.Where(e =>
-                e.EmpCode.Contains(q) ||
-                e.FirstName.Contains(q) ||
-                (e.LastName != null && e.LastName.Contains(q)) ||
-                (e.FirstName + " " + (e.LastName ?? "")).Contains(q));
+                (e.EmpCode != null && e.EmpCode.Contains(q)) ||
+                (e.FirstName != null && e.FirstName.Contains(q)) ||
+                (e.LastName != null && e.LastName.Contains(q)));
         }
 
-        var employees = await employeeQuery.OrderBy(e => e.EmpCode).ToListAsync();
+        var employees = await employeeQuery
+            .OrderBy(e => e.EmpCode)
+            .Select(e => new
+            {
+                e.EmployeeId,
+                EmpCode = e.EmpCode ?? "",
+                FullName = e.LastName == null || e.LastName == ""
+                    ? (e.FirstName ?? "")
+                    : (e.FirstName ?? "") + " " + e.LastName,
+                TeamName = e.Team != null ? e.Team.Name : null,
+                e.TeamId
+            })
+            .ToListAsync();
+
+        if (employees.Count == 0)
+        {
+            return [];
+        }
+
         var ids = employees.Select(e => e.EmployeeId).ToList();
+        var teamIds = employees.Where(e => e.TeamId.HasValue).Select(e => e.TeamId!.Value).Distinct().ToList();
         var daysInMonth = DateTime.DaysInMonth(year, month);
         var from = new DateOnly(year, month, 1);
         var to = new DateOnly(year, month, daysInMonth);
+        var now = DateTime.Now;
 
+        // ---- 2) Batch load everything else (no per-employee DB calls) ----
         var allDaily = await db.DailyAttendances.AsNoTracking()
             .Where(a => ids.Contains(a.EmployeeId) && a.AttendanceDate >= from && a.AttendanceDate <= to)
             .ToListAsync();
-        var dailyByEmp = allDaily.GroupBy(a => a.EmployeeId)
+        var dailyByEmp = allDaily
+            .GroupBy(a => a.EmployeeId)
             .ToDictionary(g => g.Key, g => g.ToDictionary(x => x.AttendanceDate));
+
+        var monthlyRows = await db.MonthlyAttendances.AsNoTracking()
+            .Where(m => ids.Contains(m.EmployeeId) && m.Year == year && m.Month == month)
+            .ToDictionaryAsync(m => m.EmployeeId);
 
         var holidays = await db.Holidays.AsNoTracking()
             .Where(h => h.HolidayDate >= from && h.HolidayDate <= to && !h.IsOptional)
@@ -1224,21 +1283,58 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
             .ToListAsync();
         var holidaySet = holidays.ToHashSet();
 
-        var rows = new List<MonthlySummaryRow>();
+        var empSchedules = await db.EmployeeSchedules.AsNoTracking()
+            .Where(s => ids.Contains(s.EmployeeId))
+            .ToDictionaryAsync(s => s.EmployeeId);
 
+        var teamSchedules = teamIds.Count == 0
+            ? new Dictionary<int, TeamSchedule>()
+            : await db.TeamSchedules.AsNoTracking()
+                .Where(s => teamIds.Contains(s.TeamId))
+                .ToDictionaryAsync(s => s.TeamId);
+
+        var shiftIds = empSchedules.Values.Select(s => s.ShiftId)
+            .Concat(teamSchedules.Values.Select(s => s.ShiftId))
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        var shifts = shiftIds.Count == 0
+            ? new Dictionary<int, ShiftTemplate>()
+            : await db.ShiftTemplates.AsNoTracking()
+                .Where(s => shiftIds.Contains(s.ShiftId))
+                .ToDictionaryAsync(s => s.ShiftId);
+
+        var rosterAll = await db.RosterEntries.AsNoTracking()
+            .Where(r => ids.Contains(r.EmployeeId) && r.RosterDate >= from && r.RosterDate <= to)
+            .ToListAsync();
+        var rosterByEmp = rosterAll.ToLookup(r => r.EmployeeId);
+
+        // ---- 3) Build rows in memory ----
+        var rows = new List<MonthlySummaryRow>(employees.Count);
         foreach (var emp in employees)
         {
             dailyByEmp.TryGetValue(emp.EmployeeId, out var byDate);
             byDate ??= new Dictionary<DateOnly, DailyAttendance>();
+            monthlyRows.TryGetValue(emp.EmployeeId, out var stored);
 
-            var stored = await db.MonthlyAttendances.AsNoTracking()
-                .FirstOrDefaultAsync(m => m.EmployeeId == emp.EmployeeId && m.Year == year && m.Month == month);
+            empSchedules.TryGetValue(emp.EmployeeId, out var empSched);
+            TeamSchedule? teamSched = null;
+            if (emp.TeamId is int tid)
+            {
+                teamSchedules.TryGetValue(tid, out teamSched);
+            }
 
-            var weekOffDates = await GetWeekOffDatesAsync(emp.EmployeeId, from, to);
-            var currentAttDate = (await ResolveWorkDayAsync(emp.EmployeeId)).AttendanceDate;
+            var weekOffMask = empSched?.WeekOffMask ?? teamSched?.WeekOffMask ?? WeekOffDays.Weekend;
+            int? shiftId = empSched?.ShiftId ?? teamSched?.ShiftId;
+            ShiftTemplate? shift = shiftId is int sid && shifts.TryGetValue(sid, out var sh) ? sh : null;
+
+            var weekOffDates = BuildWeekOffDates(from, to, weekOffMask, rosterByEmp[emp.EmployeeId]);
+            var currentAttDate = AttendanceClock.GetAttendanceDate(now, shift?.StartTime, shift?.EndTime);
             var dayCells = BuildMonthDayCells(year, month, byDate, holidaySet, weekOffDates, currentAttDate);
-            MonthStats calc;
 
+            MonthStats calc;
             if (stored is not null && stored.Status == MonthlyAttendanceStatus.Locked)
             {
                 calc = new MonthStats(
@@ -1263,7 +1359,7 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
                 EmployeeId = emp.EmployeeId,
                 EmpCode = emp.EmpCode,
                 FullName = emp.FullName,
-                TeamName = emp.Team?.Name,
+                TeamName = emp.TeamName,
                 PresentDays = calc.PresentDays,
                 AbsentDays = calc.AbsentDays,
                 HalfDays = calc.HalfDays,

@@ -74,15 +74,7 @@ public class AttendanceReportsController(IAttendanceService attendance) : Contro
         IReadOnlyList<EmployeeOption> employeeOptions = [];
         if (canViewAll || canViewTeam)
         {
-            var all = await attendance.GetEmployeesAsync(null);
-            employeeOptions = all
-                .Where(e => e.IsActive)
-                .Select(e => new EmployeeOption
-                {
-                    EmployeeId = e.EmployeeId,
-                    Display = $"{e.EmpCode} - {e.FullName}"
-                })
-                .ToList();
+            employeeOptions = await attendance.GetEmployeeFilterOptionsAsync();
         }
 
         var rows = await attendance.GetMonthlySummariesAsync(
