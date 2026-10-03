@@ -127,11 +127,28 @@
                 <input asp-for="JoinDate" type="date" />
             </div>
             <input type="hidden" asp-for="CrmUserId" />
-            <div class="form-field">
-                <label asp-for="Password"></label>
-                <input asp-for="Password" autocomplete="new-password" placeholder="@(isNew ? "Required" : "Leave blank to keep")"/>
-                <span asp-validation-for="Password" class="field-error"></span>
-            </div>
+            @if (isNew)
+            {
+                <div class="form-field">
+                    <label asp-for="Password"></label>
+                    <input asp-for="Password" autocomplete="new-password" placeholder="Required (min 6 characters)"/>
+                    <span asp-validation-for="Password" class="field-error"></span>
+                </div>
+            }
+            else
+            {
+                <p class="muted" style="grid-column: 1 / -1; margin: 0;">
+                    Password is not edited here.
+                    @if (AttendanceAccess.IsSystemAdministrator(User))
+                    {
+                        <a class="link" asp-controller="Account" asp-action="ChangePassword" asp-route-employeeId="@Model.EmployeeId">Change this employee’s password</a>
+                    }
+                    else
+                    {
+                        <text>Only System Administrator can reset another employee’s password.</text>
+                    }
+                </p>
+            }
             <div class="form-field">
                 <label class="remember">
                     <input asp-for="IsActive" />

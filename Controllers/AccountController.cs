@@ -9,6 +9,7 @@ using RushMyBookings.Crm.Entities.Attendance;
 using RushMyBookings.Crm.Helpers;
 using RushMyBookings.Crm.Services;
 using RushMyBookings.Crm.ViewModels;
+using RushMyBookings.Crm.ViewModels.Attendance;
 
 namespace RushMyBookings.Crm.Controllers;
 
@@ -204,6 +205,120 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
+    }
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> ChangePassword(int? employeeId)
+    {
+        if (!AttendanceAccess.IsInternalPortal(User) || !AttendanceAccess.HasAttendanceAccess(User))
+        {
+            return Forbid();
+        }
+
+        var selfId = AttendanceAccess.GetEmployeeId(User)!.Value;
+        var canChangeAnyone = AttendanceAccess.IsSystemAdministrator(User);
+        var targetId = canChangeAnyone && employeeId.HasValue ? employeeId.Value : selfId;
+
+        var vm = await BuildChangePasswordVmAsync(selfId, targetId, canChangeAnyone);
+        ViewData["Title"] = "Change Password";
+        ViewData["ActiveNav"] = "change-password";
+        return View(vm);
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+    {
+        if (!AttendanceAccess.IsInternalPortal(User) || !AttendanceAccess.HasAttendanceAccess(User))
+        {
+            return Forbid();
+        }
+
+        var selfId = AttendanceAccess.GetEmployeeId(User)!.Value;
+        var canChangeAnyone = AttendanceAccess.IsSystemAdministrator(User);
+
+        // Non–SysAdmin can only change their own password.
+        var targetId = canChangeAnyone ? model.EmployeeId : selfId;
+        if (targetId <= 0)
+        {
+            targetId = selfId;
+        }
+
+        var changingOwn = targetId == selfId;
+        var requireCurrent = changingOwn;
+
+        if (requireCurrent && string.IsNullOrWhiteSpace(model.CurrentPassword))
+        {
+            ModelState.AddModelError(nameof(model.CurrentPassword), "Current password is required.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var invalidVm = await BuildChangePasswordVmAsync(selfId, targetId, canChangeAnyone);
+            invalidVm.CurrentPassword = null;
+            invalidVm.NewPassword = string.Empty;
+            invalidVm.ConfirmPassword = string.Empty;
+            ViewData["Title"] = "Change Password";
+            ViewData["ActiveNav"] = "change-password";
+            return View(invalidVm);
+        }
+
+        var (ok, message) = await attendanceService.ChangePasswordAsync(
+            targetId,
+            model.NewPassword,
+            model.CurrentPassword,
+            requireCurrent);
+
+        if (!ok)
+        {
+            ModelState.AddModelError(string.Empty, message);
+            var failVm = await BuildChangePasswordVmAsync(selfId, targetId, canChangeAnyone);
+            failVm.CurrentPassword = null;
+            failVm.NewPassword = string.Empty;
+            failVm.ConfirmPassword = string.Empty;
+            ViewData["Title"] = "Change Password";
+            ViewData["ActiveNav"] = "change-password";
+            return View(failVm);
+        }
+
+        TempData["PasswordSuccess"] = message;
+        return RedirectToAction(nameof(ChangePassword), new { employeeId = canChangeAnyone ? targetId : (int?)null });
+    }
+
+    private async Task<ChangePasswordViewModel> BuildChangePasswordVmAsync(
+        int selfId,
+        int targetId,
+        bool canChangeAnyone)
+    {
+        IReadOnlyList<EmployeeOption> employees = [];
+        if (canChangeAnyone)
+        {
+            var all = await attendanceService.GetEmployeesAsync(null);
+            employees = all
+                .Where(e => e.IsActive)
+                .Select(e => new EmployeeOption
+                {
+                    EmployeeId = e.EmployeeId,
+                    Display = $"{e.EmpCode} - {e.FullName}"
+                })
+                .ToList();
+        }
+
+        var target = await attendanceService.GetEmployeeAsync(targetId);
+        var display = target is null
+            ? null
+            : $"{target.EmpCode} - {target.FullName}";
+
+        return new ChangePasswordViewModel
+        {
+            EmployeeId = targetId,
+            CanChangeAnyone = canChangeAnyone,
+            ChangingOwn = targetId == selfId,
+            TargetDisplay = display,
+            Employees = employees
+        };
     }
 
     private IActionResult RedirectToLocal(string? returnUrl, bool preferAttendance = false)

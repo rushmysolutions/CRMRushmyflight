@@ -1,0 +1,71 @@
+@model IReadOnlyList<ShiftListItem>
+@{
+    ViewData["Title"] = "Shifts";
+    ViewData["ActiveNav"] = "attendance-roster";
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Roster&nbsp;/&nbsp;Shifts</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>Shifts</h2>
+        <p>Day and night timings. Night shifts use the <strong>start day</strong> as the attendance date; opt-in stays open until end (cutoff).</p>
+    </div>
+    <a class="btn" asp-action="Index">Back to roster</a>
+</header>
+
+<section class="panel" style="margin-bottom: 20px;">
+    <h3>Add shift</h3>
+    <form asp-action="CreateShift" method="post" class="filters">
+        @Html.AntiForgeryToken()
+        <input name="name" placeholder="Name (e.g. Night Sales)" required />
+        <input name="startTime" type="time" value="22:00" required title="Start" />
+        <input name="endTime" type="time" value="07:00" required title="End / cutoff" />
+        <button type="submit" class="btn primary">Add</button>
+    </form>
+    <p class="muted" style="margin-top:8px;">If end is earlier than start (e.g. 22:00–07:00), it is treated as a night shift.</p>
+</section>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Timing</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var s in Model)
+        {
+            <tr>
+                <td>@s.Name</td>
+                <td>@s.TimingLabel</td>
+                <td>@(s.IsActive ? "Active" : "Inactive")</td>
+                <td>
+                    <form asp-action="SetShiftActive" method="post" class="inline-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="shiftId" value="@s.ShiftId" />
+                        <input type="hidden" name="isActive" value="@(!s.IsActive)" />
+                        <button type="submit" class="btn">@(s.IsActive ? "Deactivate" : "Activate")</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="4" class="muted">No shifts yet.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

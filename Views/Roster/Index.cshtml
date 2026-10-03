@@ -1,0 +1,133 @@
+@model RosterWeekViewModel
+@{
+    ViewData["Title"] = "Roster";
+    ViewData["ActiveNav"] = "attendance-roster";
+    var prev = Model.WeekStart.AddDays(-7);
+    var next = Model.WeekStart.AddDays(7);
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Roster</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>Roster</h2>
+        <p>Plan future week-offs. Click a day to toggle Off / Work. Team + employee schedules set the defaults.</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        @if (AttendanceAccess.CanManageAllRosters(User))
+        {
+            <a class="btn" asp-action="Shifts">Shifts</a>
+        }
+    </div>
+</header>
+
+<form method="get" class="filters" style="margin-bottom: 16px;">
+    <input type="hidden" name="week" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+    @if (Model.Teams.Count > 0)
+    {
+        <select name="teamId" onchange="this.form.submit()">
+            <option value="">All teams</option>
+            @foreach (var t in Model.Teams)
+            {
+                if (Model.TeamId == t.TeamId)
+                {
+                    <option value="@t.TeamId" selected>@t.Name</option>
+                }
+                else
+                {
+                    <option value="@t.TeamId">@t.Name</option>
+                }
+            }
+        </select>
+    }
+    <a class="btn" asp-action="Index" asp-route-week="@prev.ToString("yyyy-MM-dd")" asp-route-teamId="@Model.TeamId">← Prev</a>
+    <span class="muted">@Model.WeekStart.ToString("dd MMM") – @Model.Days[^1].ToString("dd MMM yyyy")</span>
+    <a class="btn" asp-action="Index" asp-route-week="@next.ToString("yyyy-MM-dd")" asp-route-teamId="@Model.TeamId">Next →</a>
+</form>
+
+@if (AttendanceAccess.CanManageAllRosters(User) && Model.Teams.Count > 0)
+{
+    <p class="muted" style="margin-top:0;">
+        Team schedule:
+        @foreach (var t in Model.Teams.Take(8))
+        {
+            <a class="link" asp-action="TeamSchedule" asp-route-teamId="@t.TeamId">@t.Name</a>
+            <text> · </text>
+        }
+    </p>
+}
+
+<div class="table-wrap team-att-scroll">
+    <table class="team-att-table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Shift</th>
+                <th>Default offs</th>
+                @foreach (var d in Model.Days)
+                {
+                    <th>@d.ToString("ddd")<br /><span class="muted">@d.ToString("dd")</span></th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var r in Model.Rows)
+        {
+            <tr>
+                <td>@r.EmpCode</td>
+                <td>
+                    @r.FullName
+                    @if (AttendanceAccess.CanManageAllRosters(User))
+                    {
+                        <br />
+                        <a class="link" asp-action="EmployeeSchedule" asp-route-employeeId="@r.EmployeeId">Schedule</a>
+                    }
+                </td>
+                <td>@r.ShiftLabel</td>
+                <td>@r.DefaultWeekOffs</td>
+                @foreach (var cell in r.Days)
+                {
+                    <td style="text-align:center;">
+                        @if (Model.CanEdit)
+                        {
+                            <form asp-action="ToggleWeekOff" method="post" style="margin:0;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="employeeId" value="@r.EmployeeId" />
+                                <input type="hidden" name="date" value="@cell.Date.ToString("yyyy-MM-dd")" />
+                                <input type="hidden" name="isWeekOff" value="@(cell.IsWeekOff ? "false" : "true")" />
+                                <input type="hidden" name="week" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                                @if (Model.TeamId.HasValue)
+                                {
+                                    <input type="hidden" name="teamId" value="@Model.TeamId" />
+                                }
+                                <button type="submit" class="btn" style="min-width:52px; padding:6px 8px;"
+                                        title="@(cell.FromRoster || cell.ForcedWork ? "Roster override — click to toggle" : "Click to toggle Off / Work")">
+                                    @cell.Label
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            @cell.Label
+                        }
+                    </td>
+                }
+            </tr>
+        }
+        @if (Model.Rows.Count == 0)
+        {
+            <tr><td colspan="@(4 + Model.Days.Count)" class="muted">No employees for this filter.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

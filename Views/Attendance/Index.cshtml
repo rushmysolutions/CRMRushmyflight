@@ -38,7 +38,17 @@
 <header class="page-header row">
     <div>
         <h2>My Attendance</h2>
-        <p>Pick status, opt in when you start, opt out when you finish</p>
+        <p>
+            Pick status, opt in when you start, opt out when you finish
+            @if (ViewBag.ShiftLabel is string shiftLabel)
+            {
+                <text> · @shiftLabel</text>
+            }
+            @if (ViewBag.IsWeekOff is true)
+            {
+                <text> · Week-off</text>
+            }
+        </p>
     </div>
     <form method="get" class="filters" id="calMonthForm">
         <input type="hidden" name="year" id="calYear" value="@month.Year" />

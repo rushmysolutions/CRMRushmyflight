@@ -14,6 +14,10 @@ public class AttendanceDbContext(DbContextOptions<AttendanceDbContext> options) 
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<AllowedIpAddress> AllowedIpAddresses => Set<AllowedIpAddress>();
     public DbSet<Role> Roles => Set<Role>();
+    public DbSet<ShiftTemplate> ShiftTemplates => Set<ShiftTemplate>();
+    public DbSet<TeamSchedule> TeamSchedules => Set<TeamSchedule>();
+    public DbSet<EmployeeSchedule> EmployeeSchedules => Set<EmployeeSchedule>();
+    public DbSet<RosterEntry> RosterEntries => Set<RosterEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -125,6 +129,59 @@ public class AttendanceDbContext(DbContextOptions<AttendanceDbContext> options) 
             e.Property(x => x.Code).IsRequired().HasMaxLength(30);
             e.HasIndex(x => x.Code).IsUnique();
             e.Property(x => x.DisplayName).IsRequired().HasMaxLength(80);
+        });
+
+        modelBuilder.Entity<ShiftTemplate>(e =>
+        {
+            e.ToTable("ShiftTemplates");
+            e.HasKey(x => x.ShiftId);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(80);
+            e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<TeamSchedule>(e =>
+        {
+            e.ToTable("TeamSchedules");
+            e.HasKey(x => x.TeamId);
+            e.HasOne(x => x.Team)
+                .WithOne()
+                .HasForeignKey<TeamSchedule>(x => x.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Shift)
+                .WithMany()
+                .HasForeignKey(x => x.ShiftId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<EmployeeSchedule>(e =>
+        {
+            e.ToTable("EmployeeSchedules");
+            e.HasKey(x => x.EmployeeId);
+            e.HasOne(x => x.Employee)
+                .WithOne()
+                .HasForeignKey<EmployeeSchedule>(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Shift)
+                .WithMany()
+                .HasForeignKey(x => x.ShiftId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<RosterEntry>(e =>
+        {
+            e.ToTable("RosterEntries");
+            e.HasKey(x => x.RosterId);
+            e.HasIndex(x => new { x.EmployeeId, x.RosterDate }).IsUnique();
+            e.Property(x => x.EntryType).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Note).HasMaxLength(200);
+            e.HasOne(x => x.Employee)
+                .WithMany()
+                .HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Shift)
+                .WithMany()
+                .HasForeignKey(x => x.ShiftId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

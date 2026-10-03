@@ -87,6 +87,12 @@
                                    asp-controller="Employees" asp-action="Holidays">Holidays</a>
                             }
 
+                            @if (AttendanceAccess.CanManageTeamRoster(User))
+                            {
+                                <a class="nav-link @(activeNav == "attendance-roster" ? "active" : "")"
+                                   asp-controller="Roster" asp-action="Index">Roster / Shifts</a>
+                            }
+
                             @if (AttendanceAccess.CanManageIpAddresses(User))
                             {
                                 <a class="nav-link @(activeNav == "attendance-ip" ? "active" : "")"
@@ -112,6 +118,12 @@
                             : (User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "CRM"))
                         · @(isInternal ? "Internal" : "CRM")
                     </div>
+                    @if (isInternal)
+                    {
+                        <a class="nav-link @(activeNav == "change-password" ? "active" : "")"
+                           asp-controller="Account" asp-action="ChangePassword"
+                           style="padding: 8px 10px; margin-bottom: 8px;">Change password</a>
+                    }
                     <form asp-controller="Account" asp-action="Logout" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="logout-btn">Sign out</button>

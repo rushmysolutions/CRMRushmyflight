@@ -74,6 +74,25 @@ public static class AttendanceAccess
         return string.Equals(role, AttendanceRoles.SystemAdministrator, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Shifts, team/employee schedules, full roster — SysAdmin / Admin / HR.</summary>
+    public static bool CanManageAllRosters(ClaimsPrincipal user)
+    {
+        var role = GetAttendanceRole(user);
+        return role is AttendanceRoles.SystemAdministrator
+            or AttendanceRoles.Admin
+            or AttendanceRoles.HR;
+    }
+
+    /// <summary>Team Lead can plan week-offs for their own team members.</summary>
+    public static bool CanManageTeamRoster(ClaimsPrincipal user)
+    {
+        var role = GetAttendanceRole(user);
+        return role is AttendanceRoles.TeamLead
+            or AttendanceRoles.SystemAdministrator
+            or AttendanceRoles.Admin
+            or AttendanceRoles.HR;
+    }
+
     public static string GetLoginPortal(ClaimsPrincipal user) =>
         user.FindFirstValue(AttendanceClaimTypes.LoginPortal) ?? LoginPortals.Crm;
 

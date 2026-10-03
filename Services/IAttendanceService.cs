@@ -29,6 +29,18 @@ public interface IAttendanceService
 
     Task<(bool Ok, string Message)> UpdateEmployeeAsync(EmployeeEditViewModel model);
 
+    /// <summary>Hard-delete employee and clear related pointers. SysAdmin only at controller.</summary>
+    Task<(bool Ok, string Message)> DeleteEmployeeAsync(int employeeId, int actorEmployeeId);
+
+    /// <summary>
+    /// Change password. When <paramref name="requireCurrentPassword"/> is true, current must match.
+    /// </summary>
+    Task<(bool Ok, string Message)> ChangePasswordAsync(
+        int employeeId,
+        string newPassword,
+        string? currentPassword,
+        bool requireCurrentPassword);
+
     /// <summary>Next employee code for a department, e.g. IT001, SAL002.</summary>
     Task<string?> GenerateNextEmpCodeAsync(string departmentName);
 
@@ -103,4 +115,35 @@ public interface IAttendanceService
         int viewerEmployeeId,
         string? viewerRole,
         int targetEmployeeId);
+
+    // ---- Shifts / schedules / roster ----
+
+    Task<IReadOnlyList<ShiftListItem>> GetShiftsAsync(bool activeOnly = true);
+
+    Task<(bool Ok, string Message)> CreateShiftAsync(string name, TimeSpan start, TimeSpan end);
+
+    Task<(bool Ok, string Message)> SetShiftActiveAsync(int shiftId, bool isActive);
+
+    Task<ScheduleEditViewModel?> GetTeamScheduleEditAsync(int teamId);
+
+    Task<(bool Ok, string Message)> SaveTeamScheduleAsync(ScheduleEditViewModel model);
+
+    Task<ScheduleEditViewModel?> GetEmployeeScheduleEditAsync(int employeeId);
+
+    Task<(bool Ok, string Message)> SaveEmployeeScheduleAsync(ScheduleEditViewModel model);
+
+    Task<ResolvedWorkDay> ResolveWorkDayAsync(int employeeId, DateTime? at = null);
+
+    Task<RosterWeekViewModel> GetRosterWeekAsync(
+        DateOnly weekStart,
+        int? teamId,
+        int viewerEmployeeId,
+        bool canManageAll,
+        bool teamLeadOnly);
+
+    Task<(bool Ok, string Message)> SetRosterWeekOffAsync(
+        int employeeId,
+        DateOnly date,
+        bool isWeekOff,
+        int actorEmployeeId);
 }

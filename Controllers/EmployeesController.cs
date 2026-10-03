@@ -184,6 +184,21 @@ public class EmployeesController(IAttendanceService attendance) : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, string? q)
+    {
+        if (!AttendanceAccess.IsSystemAdministrator(User) || !AttendanceAccess.HasAttendanceAccess(User))
+        {
+            return Forbid();
+        }
+
+        var actorId = AttendanceAccess.GetEmployeeId(User)!.Value;
+        var result = await attendance.DeleteEmployeeAsync(id, actorId);
+        TempData[result.Ok ? "AttendanceSuccess" : "AttendanceError"] = result.Message;
+        return RedirectToAction(nameof(Index), new { q });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Teams()
     {

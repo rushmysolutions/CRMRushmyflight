@@ -37,7 +37,12 @@ public class AttendanceController(IAttendanceService attendance) : Controller
         }
 
         var (y, m) = AttendancePeriodHelper.Clamp(year, month);
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var work = await attendance.ResolveWorkDayAsync(employeeId);
+        var today = work.AttendanceDate;
+        ViewBag.ShiftLabel = work.HasShift
+            ? $"{work.ShiftName} {AttendanceClock.FormatShift(work.ShiftStart!.Value, work.ShiftEnd!.Value)}"
+            : null;
+        ViewBag.IsWeekOff = work.IsWeekOff;
 
         DateOnly selectedDate = today;
         if (!string.IsNullOrWhiteSpace(date) && DateOnly.TryParse(date, out var parsed))

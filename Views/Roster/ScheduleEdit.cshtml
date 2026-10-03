@@ -1,0 +1,90 @@
+@model ScheduleEditViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    ViewData["ActiveNav"] = "attendance-roster";
+    var isEmployee = Model.EmployeeId.HasValue;
+}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">Attendance&nbsp;/&nbsp;Roster&nbsp;/&nbsp;Schedule</nav>
+
+@if (TempData["AttendanceSuccess"] is string ok)
+{
+    <div class="success-alert">@ok</div>
+}
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
+
+<header class="page-header row">
+    <div>
+        <h2>@Model.Title</h2>
+        <p>Set default shift and weekly week-offs. Use the roster page for one-off future offs.</p>
+    </div>
+    <a class="btn" asp-action="Index">Back to roster</a>
+</header>
+
+<section class="form-section" style="max-width: 560px;">
+    <form method="post" asp-action="SaveSchedule">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="TeamId" />
+        <input type="hidden" asp-for="EmployeeId" />
+        <input type="hidden" asp-for="Title" />
+
+        @if (isEmployee)
+        {
+            <div class="form-field">
+                <label class="remember">
+                    <input asp-for="InheritShift" />
+                    <span>Use team shift (no personal override)</span>
+                </label>
+            </div>
+        }
+
+        <div class="form-field">
+            <label asp-for="ShiftId">Shift</label>
+            <select asp-for="ShiftId">
+                <option value="">— None (calendar day / midnight) —</option>
+                @foreach (var s in Model.Shifts)
+                {
+                    if (Model.ShiftId == s.ShiftId)
+                    {
+                        <option value="@s.ShiftId" selected>@s.Name — @s.TimingLabel</option>
+                    }
+                    else
+                    {
+                        <option value="@s.ShiftId">@s.Name — @s.TimingLabel</option>
+                    }
+                }
+            </select>
+        </div>
+
+        @if (isEmployee)
+        {
+            <div class="form-field">
+                <label class="remember">
+                    <input asp-for="InheritWeekOff" />
+                    <span>Use team week-offs</span>
+                </label>
+            </div>
+        }
+
+        <fieldset style="border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin:12px 0;">
+            <legend style="padding:0 6px;">Week-offs</legend>
+            <div style="display:flex; flex-wrap:wrap; gap:12px;">
+                <label class="remember"><input asp-for="OffMon" /><span>Mon</span></label>
+                <label class="remember"><input asp-for="OffTue" /><span>Tue</span></label>
+                <label class="remember"><input asp-for="OffWed" /><span>Wed</span></label>
+                <label class="remember"><input asp-for="OffThu" /><span>Thu</span></label>
+                <label class="remember"><input asp-for="OffFri" /><span>Fri</span></label>
+                <label class="remember"><input asp-for="OffSat" /><span>Sat</span></label>
+                <label class="remember"><input asp-for="OffSun" /><span>Sun</span></label>
+            </div>
+        </fieldset>
+
+        <div style="display:flex; gap:10px; margin-top:16px;">
+            <button type="submit" class="btn primary">Save</button>
+            <a class="btn" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</section>

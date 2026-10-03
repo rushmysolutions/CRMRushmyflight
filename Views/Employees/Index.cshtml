@@ -11,6 +11,10 @@
 {
     <div class="success-alert">@ok</div>
 }
+@if (TempData["AttendanceError"] is string err)
+{
+    <div class="alert">@err</div>
+}
 
 <header class="page-header row">
     <div>
@@ -56,7 +60,26 @@
                 <td>@(e.Department ?? "—")</td>
                 <td>@(e.TeamName ?? "—")</td>
                 <td>@(e.IsActive ? "Active" : "Inactive")</td>
-                <td><a class="link" asp-action="Edit" asp-route-id="@e.EmployeeId">Edit</a></td>
+                <td>
+                    <a class="link" asp-action="Edit" asp-route-id="@e.EmployeeId">Edit</a>
+                    @if (AttendanceAccess.CanManageAllRosters(User))
+                    {
+                        <text> · </text>
+                        <a class="link" asp-controller="Roster" asp-action="EmployeeSchedule" asp-route-employeeId="@e.EmployeeId">Schedule</a>
+                    }
+                    @if (AttendanceAccess.IsSystemAdministrator(User))
+                    {
+                        <text> · </text>
+                        <form asp-action="Delete" method="post" class="inline-form"
+                              onsubmit="return confirm('Delete @e.EmpCode — @e.FullName? This cannot be undone.');"
+                              style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@e.EmployeeId" />
+                            <input type="hidden" name="q" value="@search" />
+                            <button type="submit" class="link" style="background:none;border:none;padding:0;color:var(--danger);cursor:pointer;">Delete</button>
+                        </form>
+                    }
+                </td>
             </tr>
         }
         @if (Model.Count == 0)

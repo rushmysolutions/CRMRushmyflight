@@ -43,6 +43,7 @@
             <tr>
                 <th>Id</th>
                 <th>Name</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -51,11 +52,17 @@
             <tr>
                 <td>@t.TeamId</td>
                 <td>@t.Name</td>
+                <td>
+                    @if (AttendanceAccess.CanManageAllRosters(User))
+                    {
+                        <a class="link" asp-controller="Roster" asp-action="TeamSchedule" asp-route-teamId="@t.TeamId">Schedule</a>
+                    }
+                </td>
             </tr>
         }
         @if (Model.Count == 0)
         {
-            <tr><td colspan="2" class="muted">No teams yet.</td></tr>
+            <tr><td colspan="3" class="muted">No teams yet.</td></tr>
         }
         </tbody>
     </table>

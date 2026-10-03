@@ -6,7 +6,7 @@ using RushMyBookings.Crm.ViewModels.Attendance;
 
 namespace RushMyBookings.Crm.Services;
 
-public class AttendanceService(AttendanceDbContext db) : IAttendanceService
+public partial class AttendanceService(AttendanceDbContext db) : IAttendanceService
 {
     public async Task EnsureDatabaseAsync()
     {
@@ -110,44 +110,172 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         return null;
     }
 
-    public Task<Employee?> GetEmployeeAsync(int employeeId) =>
-        db.Employees
-            .Include(e => e.Team)
-            .Include(e => e.Role)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+    public async Task<Employee?> GetEmployeeAsync(int employeeId)
+    {
+        // ISNULL keeps dirty/null SQL columns from throwing SqlNullValueException.
+        var rows = await db.Database.SqlQueryRaw<EmployeeEditSqlRow>("""
+            SELECT
+                e.EmployeeId,
+                ISNULL(e.EmpCode, N'') AS EmpCode,
+                ISNULL(e.FirstName, N'') AS FirstName,
+                e.LastName,
+                ISNULL(e.Email, N'') AS Email,
+                e.Phone,
+                e.Department,
+                e.Designation,
+                ISNULL(e.Username, N'') AS Username,
+                ISNULL(e.PasswordHash, N'') AS PasswordHash,
+                ISNULL(e.RoleId, 0) AS RoleId,
+                e.TeamId,
+                e.ReportingLeadId,
+                e.CrmUserId,
+                ISNULL(e.JoinDate, CAST(GETDATE() AS datetime2)) AS JoinDate,
+                CAST(ISNULL(e.IsActive, 1) AS bit) AS IsActive,
+                ISNULL(e.CreatedAt, SYSUTCDATETIME()) AS CreatedAt,
+                e.CreatedByEmployeeId,
+                r.RoleId AS RoleNavId,
+                ISNULL(r.Code, N'') AS RoleCode,
+                ISNULL(r.DisplayName, N'') AS RoleDisplayName,
+                ISNULL(r.SortOrder, 0) AS RoleSortOrder,
+                CAST(ISNULL(r.IsActive, 1) AS bit) AS RoleIsActive,
+                ISNULL(r.CreatedAt, SYSUTCDATETIME()) AS RoleCreatedAt,
+                t.TeamId AS TeamNavId,
+                ISNULL(t.Name, N'') AS TeamName,
+                t.LeadEmployeeId AS TeamLeadEmployeeId,
+                CAST(ISNULL(t.IsActive, 1) AS bit) AS TeamIsActive,
+                ISNULL(t.CreatedAt, SYSUTCDATETIME()) AS TeamCreatedAt
+            FROM dbo.Employees e
+            LEFT JOIN dbo.Roles r ON r.RoleId = e.RoleId
+            LEFT JOIN dbo.Teams t ON t.TeamId = e.TeamId
+            WHERE e.EmployeeId = {0}
+            """, employeeId).ToListAsync();
+
+        var row = rows.FirstOrDefault();
+        if (row is null)
+        {
+            return null;
+        }
+
+        return new Employee
+        {
+            EmployeeId = row.EmployeeId,
+            EmpCode = row.EmpCode,
+            FirstName = row.FirstName,
+            LastName = row.LastName,
+            Email = row.Email,
+            Phone = row.Phone,
+            Department = row.Department,
+            Designation = row.Designation,
+            Username = row.Username,
+            PasswordHash = row.PasswordHash,
+            RoleId = row.RoleId,
+            TeamId = row.TeamId,
+            ReportingLeadId = row.ReportingLeadId,
+            CrmUserId = row.CrmUserId,
+            JoinDate = row.JoinDate,
+            IsActive = row.IsActive,
+            CreatedAt = row.CreatedAt,
+            CreatedByEmployeeId = row.CreatedByEmployeeId,
+            Role = row.RoleNavId is null
+                ? null
+                : new Role
+                {
+                    RoleId = row.RoleNavId.Value,
+                    Code = row.RoleCode,
+                    DisplayName = row.RoleDisplayName,
+                    SortOrder = row.RoleSortOrder,
+                    IsActive = row.RoleIsActive,
+                    CreatedAt = row.RoleCreatedAt
+                },
+            Team = row.TeamNavId is null
+                ? null
+                : new Team
+                {
+                    TeamId = row.TeamNavId.Value,
+                    Name = row.TeamName,
+                    LeadEmployeeId = row.TeamLeadEmployeeId,
+                    IsActive = row.TeamIsActive,
+                    CreatedAt = row.TeamCreatedAt
+                }
+        };
+    }
 
     public async Task<IReadOnlyList<EmployeeListItem>> GetEmployeesAsync(string? search = null)
     {
-        var q = db.Employees.AsNoTracking().Include(e => e.Team).Include(e => e.Role).AsQueryable();
+        // Raw SQL + ISNULL: null EmpCode/Email/IsActive/Role etc. won't crash the page.
+        const string selectSql = """
+            SELECT
+                e.EmployeeId AS EmployeeId,
+                ISNULL(e.EmpCode, N'') AS EmpCode,
+                CASE
+                    WHEN e.LastName IS NULL OR LTRIM(RTRIM(e.LastName)) = N''
+                        THEN ISNULL(e.FirstName, N'')
+                    ELSE ISNULL(e.FirstName, N'') + N' ' + e.LastName
+                END AS FullName,
+                ISNULL(e.Email, N'') AS Email,
+                ISNULL(r.DisplayName, N'') AS Role,
+                e.Department AS Department,
+                t.Name AS TeamName,
+                CAST(ISNULL(e.IsActive, 1) AS bit) AS IsActive
+            FROM dbo.Employees e
+            LEFT JOIN dbo.Roles r ON r.RoleId = e.RoleId
+            LEFT JOIN dbo.Teams t ON t.TeamId = e.TeamId
+            """;
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (string.IsNullOrWhiteSpace(search))
         {
-            var s = search.Trim();
-            q = q.Where(e =>
-                e.EmpCode.Contains(s) ||
-                e.FirstName.Contains(s) ||
-                (e.LastName != null && e.LastName.Contains(s)) ||
-                e.Email.Contains(s) ||
-                e.Username.Contains(s));
+            return await db.Database
+                .SqlQueryRaw<EmployeeListItem>(selectSql + " ORDER BY EmpCode")
+                .ToListAsync();
         }
 
-        return await q
-            .OrderBy(e => e.EmpCode)
-            .Select(e => new EmployeeListItem
-            {
-                EmployeeId = e.EmployeeId,
-                EmpCode = e.EmpCode,
-                FullName = e.LastName == null || e.LastName == ""
-                    ? e.FirstName
-                    : e.FirstName + " " + e.LastName,
-                Email = e.Email,
-                Role = e.Role != null ? e.Role.DisplayName : "",
-                Department = e.Department,
-                TeamName = e.Team != null ? e.Team.Name : null,
-                IsActive = e.IsActive
-            })
+        var like = "%" + search.Trim() + "%";
+        return await db.Database
+            .SqlQueryRaw<EmployeeListItem>(
+                selectSql + """
+                     WHERE e.EmpCode LIKE {0}
+                        OR e.FirstName LIKE {0}
+                        OR e.LastName LIKE {0}
+                        OR e.Email LIKE {0}
+                        OR e.Username LIKE {0}
+                     ORDER BY EmpCode
+                    """,
+                like)
             .ToListAsync();
+    }
+
+    /// <summary>Column bag for null-safe employee load (Edit / details).</summary>
+    private sealed class EmployeeEditSqlRow
+    {
+        public int EmployeeId { get; set; }
+        public string EmpCode { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string? LastName { get; set; }
+        public string Email { get; set; } = "";
+        public string? Phone { get; set; }
+        public string? Department { get; set; }
+        public string? Designation { get; set; }
+        public string Username { get; set; } = "";
+        public string PasswordHash { get; set; } = "";
+        public int RoleId { get; set; }
+        public int? TeamId { get; set; }
+        public int? ReportingLeadId { get; set; }
+        public int? CrmUserId { get; set; }
+        public DateTime JoinDate { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int? CreatedByEmployeeId { get; set; }
+        public int? RoleNavId { get; set; }
+        public string RoleCode { get; set; } = "";
+        public string RoleDisplayName { get; set; } = "";
+        public int RoleSortOrder { get; set; }
+        public bool RoleIsActive { get; set; }
+        public DateTime RoleCreatedAt { get; set; }
+        public int? TeamNavId { get; set; }
+        public string TeamName { get; set; } = "";
+        public int? TeamLeadEmployeeId { get; set; }
+        public bool TeamIsActive { get; set; }
+        public DateTime TeamCreatedAt { get; set; }
     }
 
     public async Task<IReadOnlyList<TeamOption>> GetTeamsAsync() =>
@@ -188,23 +316,26 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
             })
             .ToListAsync();
 
-    public async Task<IReadOnlyList<EmployeeOption>> GetLeadOptionsAsync() =>
-        await db.Employees
-            .AsNoTracking()
-            .Where(e => e.IsActive &&
-                        e.Role != null &&
-                        (e.Role.Code == AttendanceRoles.TeamLead ||
-                         e.Role.Code == AttendanceRoles.HR ||
-                         e.Role.Code == AttendanceRoles.Head ||
-                         e.Role.Code == AttendanceRoles.Admin ||
-                         e.Role.Code == AttendanceRoles.SystemAdministrator))
-            .OrderBy(e => e.FirstName)
-            .Select(e => new EmployeeOption
-            {
-                EmployeeId = e.EmployeeId,
-                Display = e.EmpCode + " - " + e.FirstName + (e.LastName != null ? " " + e.LastName : "")
-            })
-            .ToListAsync();
+    public async Task<IReadOnlyList<EmployeeOption>> GetLeadOptionsAsync()
+    {
+        return await db.Database.SqlQueryRaw<EmployeeOption>("""
+            SELECT
+                e.EmployeeId AS EmployeeId,
+                ISNULL(e.EmpCode, N'') + N' - ' + ISNULL(e.FirstName, N'')
+                    + CASE WHEN e.LastName IS NULL OR LTRIM(RTRIM(e.LastName)) = N'' THEN N'' ELSE N' ' + e.LastName END
+                    AS Display
+            FROM dbo.Employees e
+            INNER JOIN dbo.Roles r ON r.RoleId = e.RoleId
+            WHERE ISNULL(e.IsActive, 1) = 1
+              AND r.Code IN ({0}, {1}, {2}, {3}, {4})
+            ORDER BY e.FirstName
+            """,
+            AttendanceRoles.TeamLead,
+            AttendanceRoles.HR,
+            AttendanceRoles.Head,
+            AttendanceRoles.Admin,
+            AttendanceRoles.SystemAdministrator).ToListAsync();
+    }
 
     public async Task<(bool Ok, string Message, int EmployeeId)> CreateEmployeeAsync(
         EmployeeEditViewModel model,
@@ -386,18 +517,111 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         employee.JoinDate = model.JoinDate.Date;
         employee.IsActive = model.IsActive;
 
-        if (!string.IsNullOrWhiteSpace(model.Password))
-        {
-            if (model.Password.Length < 6)
-            {
-                return (false, "Password must be at least 6 characters.");
-            }
-
-            employee.PasswordHash = AttendancePasswordHasher.Hash(model.Password);
-        }
+        // Password changes go through Change Password (SysAdmin: anyone; others: own only).
 
         await db.SaveChangesAsync();
         return (true, "Employee updated successfully.");
+    }
+
+    public async Task<(bool Ok, string Message)> DeleteEmployeeAsync(int employeeId, int actorEmployeeId)
+    {
+        if (employeeId == actorEmployeeId)
+        {
+            return (false, "You cannot delete your own account.");
+        }
+
+        var employee = await db.Employees
+            .Include(e => e.Role)
+            .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+        if (employee is null)
+        {
+            return (false, "Employee not found.");
+        }
+
+        // Keep at least one System Administrator
+        if (string.Equals(employee.Role?.Code, AttendanceRoles.SystemAdministrator, StringComparison.OrdinalIgnoreCase))
+        {
+            var otherSysAdmins = await db.Employees.CountAsync(e =>
+                e.EmployeeId != employeeId &&
+                e.Role != null &&
+                e.Role.Code == AttendanceRoles.SystemAdministrator);
+            if (otherSysAdmins == 0)
+            {
+                return (false, "Cannot delete the only System Administrator.");
+            }
+        }
+
+        var code = employee.EmpCode ?? employeeId.ToString();
+        var name = string.IsNullOrWhiteSpace(employee.LastName)
+            ? (employee.FirstName ?? code)
+            : $"{employee.FirstName} {employee.LastName}";
+
+        // Clear pointers that block delete
+        await db.Employees
+            .Where(e => e.ReportingLeadId == employeeId)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.ReportingLeadId, (int?)null));
+
+        await db.Employees
+            .Where(e => e.CreatedByEmployeeId == employeeId)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.CreatedByEmployeeId, (int?)null));
+
+        await db.Teams
+            .Where(t => t.LeadEmployeeId == employeeId)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.LeadEmployeeId, (int?)null));
+
+        await db.DailyAttendances
+            .Where(a => a.MarkedByEmployeeId == employeeId && a.EmployeeId != employeeId)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.MarkedByEmployeeId, actorEmployeeId));
+
+        await db.MonthlyAttendances
+            .Where(m => m.CalculatedByEmployeeId == employeeId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.CalculatedByEmployeeId, (int?)null));
+
+        await db.AllowedIpAddresses
+            .Where(ip => ip.CreatedByEmployeeId == employeeId)
+            .ExecuteUpdateAsync(s => s.SetProperty(ip => ip.CreatedByEmployeeId, (int?)null));
+
+        // Own daily/monthly/schedule/roster rows cascade with this delete
+        db.Employees.Remove(employee);
+        await db.SaveChangesAsync();
+
+        return (true, $"Deleted {code} — {name}.");
+    }
+
+    public async Task<(bool Ok, string Message)> ChangePasswordAsync(
+        int employeeId,
+        string newPassword,
+        string? currentPassword,
+        bool requireCurrentPassword)
+    {
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            return (false, "New password must be at least 6 characters.");
+        }
+
+        var employee = await db.Employees.FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+        if (employee is null)
+        {
+            return (false, "Employee not found.");
+        }
+
+        if (!employee.IsActive)
+        {
+            return (false, "Cannot change password for an inactive employee.");
+        }
+
+        if (requireCurrentPassword)
+        {
+            if (string.IsNullOrWhiteSpace(currentPassword) ||
+                !AttendancePasswordHasher.Verify(currentPassword, employee.PasswordHash))
+            {
+                return (false, "Current password is incorrect.");
+            }
+        }
+
+        employee.PasswordHash = AttendancePasswordHasher.Hash(newPassword);
+        await db.SaveChangesAsync();
+        return (true, "Password changed successfully.");
     }
 
     public async Task<(bool Ok, string Message)> CreateTeamAsync(
@@ -537,12 +761,12 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         return (true, "Holiday removed. Re-run Close Month to refresh monthly totals.");
     }
 
-    public Task<DailyAttendance?> GetTodayAttendanceAsync(int employeeId)
+    public async Task<DailyAttendance?> GetTodayAttendanceAsync(int employeeId)
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        return db.DailyAttendances
+        var day = await ResolveWorkDayAsync(employeeId);
+        return await db.DailyAttendances
             .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.AttendanceDate == today);
+            .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.AttendanceDate == day.AttendanceDate);
     }
 
     public async Task<(bool Ok, string Message)> ToggleOptInOutAsync(
@@ -556,14 +780,29 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
             return (false, "Employee not found or inactive.");
         }
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var nowLocal = DateTime.Now;
+        var work = await ResolveWorkDayAsync(employeeId, nowLocal);
+        var today = work.AttendanceDate;
+
         if (await IsMonthLockedAsync(employeeId, today.Year, today.Month))
         {
             return (false, "This month is locked. Contact HR to make changes.");
         }
 
-        var now = DateTime.Now.TimeOfDay;
-        now = new TimeSpan(now.Hours, now.Minutes, 0);
+        if (work.IsWeekOff)
+        {
+            return (false, "Today is a week-off on your roster/schedule. Contact HR if you need to work.");
+        }
+
+        // If a shift is set, only allow punches inside Start → End (cutoff), including after midnight for night shifts.
+        if (work.HasShift &&
+            !AttendanceClock.IsWithinShiftWindow(nowLocal, today, work.ShiftStart!.Value, work.ShiftEnd!.Value))
+        {
+            var timing = AttendanceClock.FormatShift(work.ShiftStart.Value, work.ShiftEnd.Value);
+            return (false, $"Outside your shift window ({work.ShiftName}: {timing}).");
+        }
+
+        var now = new TimeSpan(nowLocal.Hour, nowLocal.Minute, 0);
 
         var existing = await db.DailyAttendances
             .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.AttendanceDate == today);
@@ -604,22 +843,20 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
             }
 
             await db.SaveChangesAsync();
-            return (true, $"Opted in as {LabelStatus(chosen)}. Click Opt-out when you finish.");
+            var nightNote = work.HasShift && work.ShiftEnd < work.ShiftStart
+                ? $" Attendance date is {today:dd MMM} (shift start day)."
+                : "";
+            return (true, $"Opted in as {LabelStatus(chosen)}.{nightNote} Click Opt-out when you finish.");
         }
 
         // Opt-out
         if (existing.OptOutTime.HasValue)
         {
-            return (false, "You have already opted out for today.");
-        }
-
-        if (now < existing.OptInTime.Value)
-        {
-            return (false, "Opt-out time cannot be earlier than opt-in.");
+            return (false, "You have already opted out for this attendance day.");
         }
 
         existing.OptOutTime = now;
-        existing.WorkMinutes = (int)(now - existing.OptInTime.Value).TotalMinutes;
+        existing.WorkMinutes = AttendanceClock.CalcWorkMinutes(existing.OptInTime.Value, now);
         existing.MarkedByEmployeeId = employeeId;
         existing.MarkedAt = DateTime.UtcNow;
         existing.Source = "Self";
@@ -639,7 +876,9 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
             return (false, "Employee not found or inactive.");
         }
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var work = await ResolveWorkDayAsync(employeeId);
+        var today = work.AttendanceDate;
+
         if (await IsMonthLockedAsync(employeeId, today.Year, today.Month))
         {
             return (false, "This month is locked. Contact HR to make changes.");
@@ -649,6 +888,11 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         if (chosen is null)
         {
             return (false, "Invalid status. Choose Present, WFH, Half Day, or Leave.");
+        }
+
+        if (work.IsWeekOff && chosen != DailyAttendanceStatus.Leave)
+        {
+            return (false, "Today is a week-off. You can only mark Leave, or ask HR to change the roster.");
         }
 
         var existing = await db.DailyAttendances
@@ -817,15 +1061,15 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         var holidaySet = holidays.ToHashSet();
 
         var byDate = records.ToDictionary(r => r.AttendanceDate);
+        var weekOffDates = await GetWeekOffDatesAsync(employeeId, from, to);
+        var currentAttDate = (await ResolveWorkDayAsync(employeeId)).AttendanceDate;
         var cells = new List<DayAttendanceCell>();
 
         for (var day = 1; day <= daysInMonth; day++)
         {
             var date = new DateOnly(year, month, day);
-            var dow = date.DayOfWeek;
-            var weekend = dow is DayOfWeek.Saturday or DayOfWeek.Sunday;
             byDate.TryGetValue(date, out var rec);
-            var effective = ResolveEffectiveStatus(rec, DateOnly.FromDateTime(DateTime.Today));
+            var effective = ResolveEffectiveStatus(rec, currentAttDate);
 
             cells.Add(new DayAttendanceCell
             {
@@ -835,7 +1079,7 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
                 OptOut = rec?.OptOutTime,
                 WorkMinutes = rec?.WorkMinutes,
                 Remarks = rec?.Remarks,
-                IsWeekend = weekend,
+                IsWeekend = weekOffDates.Contains(date),
                 IsHoliday = holidaySet.Contains(date)
             });
         }
@@ -967,7 +1211,6 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         var daysInMonth = DateTime.DaysInMonth(year, month);
         var from = new DateOnly(year, month, 1);
         var to = new DateOnly(year, month, daysInMonth);
-        var today = DateOnly.FromDateTime(DateTime.Today);
 
         var allDaily = await db.DailyAttendances.AsNoTracking()
             .Where(a => ids.Contains(a.EmployeeId) && a.AttendanceDate >= from && a.AttendanceDate <= to)
@@ -991,7 +1234,9 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
             var stored = await db.MonthlyAttendances.AsNoTracking()
                 .FirstOrDefaultAsync(m => m.EmployeeId == emp.EmployeeId && m.Year == year && m.Month == month);
 
-            var dayCells = BuildMonthDayCells(year, month, byDate, holidaySet, today);
+            var weekOffDates = await GetWeekOffDatesAsync(emp.EmployeeId, from, to);
+            var currentAttDate = (await ResolveWorkDayAsync(emp.EmployeeId)).AttendanceDate;
+            var dayCells = BuildMonthDayCells(year, month, byDate, holidaySet, weekOffDates, currentAttDate);
             MonthStats calc;
 
             if (stored is not null && stored.Status == MonthlyAttendanceStatus.Locked)
@@ -1009,7 +1254,8 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
             }
             else
             {
-                calc = ComputeMonthStatsFromRecords(byDate.Values.ToList(), year, month, holidaySet, today);
+                calc = ComputeMonthStatsFromRecords(
+                    byDate.Values.ToList(), year, month, holidaySet, weekOffDates, currentAttDate);
             }
 
             rows.Add(new MonthlySummaryRow
@@ -1249,16 +1495,25 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
                 (a.Status == DailyAttendanceStatus.Present || a.Status == DailyAttendanceStatus.Wfh))
             .ToListAsync();
 
+        var changed = false;
         foreach (var row in open)
         {
+            // Night shifts: don't half-day while the same attendance day is still open after midnight.
+            var current = (await ResolveWorkDayAsync(row.EmployeeId)).AttendanceDate;
+            if (row.AttendanceDate >= current)
+            {
+                continue;
+            }
+
             row.Status = DailyAttendanceStatus.HalfDay;
             row.Remarks = string.IsNullOrWhiteSpace(row.Remarks)
                 ? "Auto: missed opt-out"
                 : row.Remarks;
             row.MarkedAt = DateTime.UtcNow;
+            changed = true;
         }
 
-        if (open.Count > 0)
+        if (changed)
         {
             await db.SaveChangesAsync();
         }
@@ -1275,12 +1530,14 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
             .Select(h => h.HolidayDate)
             .ToListAsync();
         var holidaySet = holidays.ToHashSet();
+        var weekOffDates = await GetWeekOffDatesAsync(employeeId, from, to);
+        var currentAttDate = (await ResolveWorkDayAsync(employeeId)).AttendanceDate;
 
         var records = await db.DailyAttendances.AsNoTracking()
             .Where(a => a.EmployeeId == employeeId && a.AttendanceDate >= from && a.AttendanceDate <= to)
             .ToListAsync();
 
-        return ComputeMonthStatsFromRecords(records, year, month, holidaySet, DateOnly.FromDateTime(DateTime.Today));
+        return ComputeMonthStatsFromRecords(records, year, month, holidaySet, weekOffDates, currentAttDate);
     }
 
     private static MonthStats ComputeMonthStatsFromRecords(
@@ -1288,19 +1545,15 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         int year,
         int month,
         HashSet<DateOnly> holidaySet,
-        DateOnly today)
+        HashSet<DateOnly> weekOffDates,
+        DateOnly currentAttendanceDate)
     {
         var daysInMonth = DateTime.DaysInMonth(year, month);
         var workingDays = 0;
         for (var d = 1; d <= daysInMonth; d++)
         {
             var date = new DateOnly(year, month, d);
-            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
-            {
-                continue;
-            }
-
-            if (holidaySet.Contains(date))
+            if (weekOffDates.Contains(date) || holidaySet.Contains(date))
             {
                 continue;
             }
@@ -1309,7 +1562,7 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         }
 
         var effective = records
-            .Select(r => (Rec: r, Status: ResolveEffectiveStatus(r, today)))
+            .Select(r => (Rec: r, Status: ResolveEffectiveStatus(r, currentAttendanceDate)))
             .Where(x => !string.IsNullOrEmpty(x.Status))
             .ToList();
 
@@ -1334,7 +1587,7 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
 
         var markedWorking = effective.Count(x =>
             !holidaySet.Contains(x.Rec.AttendanceDate) &&
-            x.Rec.AttendanceDate.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday) &&
+            !weekOffDates.Contains(x.Rec.AttendanceDate) &&
             countable.Contains(x.Status!));
 
         var absent = absentMarked + Math.Max(0, workingDays - markedWorking);
@@ -1359,7 +1612,8 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         int month,
         IReadOnlyDictionary<DateOnly, DailyAttendance> byDate,
         HashSet<DateOnly> holidaySet,
-        DateOnly today)
+        HashSet<DateOnly> weekOffDates,
+        DateOnly currentAttendanceDate)
     {
         var daysInMonth = DateTime.DaysInMonth(year, month);
         var cells = new List<MonthlyDayCell>(daysInMonth);
@@ -1368,18 +1622,18 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         {
             var date = new DateOnly(year, month, d);
             byDate.TryGetValue(date, out var rec);
-            var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+            var weekOff = weekOffDates.Contains(date);
             var holiday = holidaySet.Contains(date);
             var missingOptOut = rec is not null
                 && rec.OptInTime.HasValue
                 && !rec.OptOutTime.HasValue
-                && date < today;
+                && date < currentAttendanceDate;
 
             cells.Add(new MonthlyDayCell
             {
                 Day = d,
-                Status = ResolveEffectiveStatus(rec, today),
-                IsWeekend = weekend,
+                Status = ResolveEffectiveStatus(rec, currentAttendanceDate),
+                IsWeekend = weekOff,
                 IsHoliday = holiday,
                 MissingOptOut = missingOptOut
             });
@@ -1389,10 +1643,10 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
     }
 
     /// <summary>
-    /// Past day opted in but never opted out → Half Day for reports/totals.
-    /// Today stays as marked until they opt out or the day ends.
+    /// Past attendance day opted in but never opted out → Half Day.
+    /// Current attendance day (night shift after midnight) stays open.
     /// </summary>
-    internal static string? ResolveEffectiveStatus(DailyAttendance? rec, DateOnly today)
+    internal static string? ResolveEffectiveStatus(DailyAttendance? rec, DateOnly currentAttendanceDate)
     {
         if (rec is null || string.IsNullOrWhiteSpace(rec.Status))
         {
@@ -1400,7 +1654,7 @@ public class AttendanceService(AttendanceDbContext db) : IAttendanceService
         }
 
         var status = rec.Status.Trim();
-        var forgotOptOut = rec.AttendanceDate < today
+        var forgotOptOut = rec.AttendanceDate < currentAttendanceDate
             && rec.OptInTime.HasValue
             && !rec.OptOutTime.HasValue
             && (string.Equals(status, DailyAttendanceStatus.Present, StringComparison.OrdinalIgnoreCase)
