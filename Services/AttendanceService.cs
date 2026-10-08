@@ -1102,14 +1102,12 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
         };
     }
 
-    public async Task<IReadOnlyList<EmployeeOption>> GetEmployeeFilterOptionsAsync()
+    public async Task<IReadOnlyList<EmployeeOption>> GetEmployeeFilterOptionsAsync(string? viewerRole)
     {
         // Small projection for Monthly dropdown — not the full employee list page query.
-        return await db.Employees.AsNoTracking()
-            .Where(e => e.IsActive
-                        && e.Role != null
-                        && e.Role.Code != AttendanceRoles.Admin
-                        && e.Role.Code != AttendanceRoles.SystemAdministrator)
+        var q = ApplyMonthlyVisibleRoles(db.Employees.AsNoTracking(), viewerRole);
+
+        return await q
             .OrderBy(e => e.EmpCode)
             .Select(e => new EmployeeOption
             {
@@ -1118,6 +1116,30 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
                     + (e.LastName == null || e.LastName == "" ? "" : " " + e.LastName)
             })
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Monthly Report who is visible:
+    /// - SystemAdministrator → all roles (Admin, HR, staff, and themselves)
+    /// - Admin / HR / everyone else → all except SystemAdministrator (includes themselves)
+    /// </summary>
+    private static IQueryable<Employee> ApplyMonthlyVisibleRoles(
+        IQueryable<Employee> query,
+        string? viewerRole)
+    {
+        query = query.Where(e => e.IsActive && e.Role != null);
+
+        var isSysAdmin = string.Equals(
+            viewerRole,
+            AttendanceRoles.SystemAdministrator,
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!isSysAdmin)
+        {
+            query = query.Where(e => e.Role!.Code != AttendanceRoles.SystemAdministrator);
+        }
+
+        return query;
     }
 
     public async Task<IReadOnlyList<TeamAttendanceRow>> GetTeamAttendanceAsync(
@@ -1204,14 +1226,12 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
         int? viewerEmployeeId,
         bool canViewAll,
         bool canViewTeam,
+        string? viewerRole,
         string? search = null)
     {
         // ---- 1) Employees (one query) ----
-        var employeeQuery = db.Employees.AsNoTracking()
-            .Where(e => e.IsActive
-                        && e.Role != null
-                        && e.Role.Code != AttendanceRoles.Admin
-                        && e.Role.Code != AttendanceRoles.SystemAdministrator);
+        // SysAdmin sees everyone (including Admin/HR/SysAdmin). Others never see SysAdmin.
+        var employeeQuery = ApplyMonthlyVisibleRoles(db.Employees.AsNoTracking(), viewerRole);
 
         if (filterEmployeeId.HasValue)
         {

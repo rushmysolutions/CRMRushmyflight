@@ -40,7 +40,8 @@
         <thead>
             <tr>
                 <th>Name</th>
-                <th>Timing</th>
+                <th>Start</th>
+                <th>End</th>
                 <th>Status</th>
                 <th></th>
             </tr>
@@ -49,22 +50,39 @@
         @foreach (var s in Model)
         {
             <tr>
-                <td>@s.Name</td>
-                <td>@s.TimingLabel</td>
-                <td>@(s.IsActive ? "Active" : "Inactive")</td>
-                <td>
-                    <form asp-action="SetShiftActive" method="post" class="inline-form">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="shiftId" value="@s.ShiftId" />
-                        <input type="hidden" name="isActive" value="@(!s.IsActive)" />
-                        <button type="submit" class="btn">@(s.IsActive ? "Deactivate" : "Activate")</button>
-                    </form>
+                <td colspan="5" style="padding: 10px 14px;">
+                    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; width:100%;">
+                        <form id="shift-edit-@s.ShiftId" asp-action="UpdateShift" method="post"
+                              style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; flex:1 1 auto; margin:0;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="shiftId" value="@s.ShiftId" />
+                            <input name="name" value="@s.Name" required style="min-width:140px;" />
+                            <input name="startTime" type="time" value="@s.StartTime.ToString(@"hh\:mm")" required title="Start" />
+                            <input name="endTime" type="time" value="@s.EndTime.ToString(@"hh\:mm")" required title="End" />
+                            <span class="muted">@(s.IsActive ? "Active" : "Inactive")@(s.CrossesMidnight ? " · night" : "")</span>
+                        </form>
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-left:auto;">
+                            <button type="submit" form="shift-edit-@s.ShiftId" class="btn primary">Save</button>
+                            <form asp-action="SetShiftActive" method="post" class="inline-form" style="margin:0;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="shiftId" value="@s.ShiftId" />
+                                <input type="hidden" name="isActive" value="@(!s.IsActive)" />
+                                <button type="submit" class="btn">@(s.IsActive ? "Deactivate" : "Activate")</button>
+                            </form>
+                            <form asp-action="DeleteShift" method="post" class="inline-form" style="margin:0;"
+                                  onsubmit="return confirm('Delete shift @s.Name? Teams/employees using it will have no shift set.');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="shiftId" value="@s.ShiftId" />
+                                <button type="submit" class="btn" style="color:var(--danger);">Delete</button>
+                            </form>
+                        </div>
+                    </div>
                 </td>
             </tr>
         }
         @if (Model.Count == 0)
         {
-            <tr><td colspan="4" class="muted">No shifts yet.</td></tr>
+            <tr><td colspan="5" class="muted">No shifts yet.</td></tr>
         }
         </tbody>
     </table>

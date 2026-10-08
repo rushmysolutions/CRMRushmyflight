@@ -67,6 +67,13 @@ public class AttendanceController(IAttendanceService attendance) : Controller
         monthView.CanEdit = monthView.CanEdit && !monthLocked;
 
         var day = monthView.Days.FirstOrDefault(d => d.Date == selectedDate);
+        // Only default to Present for today (opt-in dropdown). Past unmarked days stay blank.
+        var status = day?.Status;
+        if (string.IsNullOrEmpty(status) && selectedDate == today)
+        {
+            status = DailyAttendanceStatus.Present;
+        }
+
         var mark = new MarkAttendanceViewModel
         {
             EmployeeId = employeeId,
@@ -76,7 +83,7 @@ public class AttendanceController(IAttendanceService attendance) : Controller
             OptOutTime = day?.OptOut,
             HasOptedIn = day?.HasOptedIn == true,
             HasOptedOut = day?.HasOptedOut == true,
-            Status = string.IsNullOrEmpty(day?.Status) ? DailyAttendanceStatus.Present : day.Status,
+            Status = status ?? string.Empty,
             Remarks = day?.Remarks,
             MonthLocked = monthLocked
         };

@@ -370,8 +370,11 @@ a.link {
 }
 a.link:hover { text-decoration: underline; }
 
-.table-wrap {
-  overflow: auto;
+.table-wrap,
+.table-responsive,
+.booking-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-x pan-y;
@@ -379,22 +382,46 @@ a.link:hover { text-decoration: underline; }
   border-radius: 16px;
   background: var(--panel);
   max-width: 100%;
-  max-height: none;
+  max-height: 500px;
+  width: 100%;
   scrollbar-width: thin;
 }
-.table-wrap::-webkit-scrollbar {
+.table-wrap::-webkit-scrollbar,
+.table-responsive::-webkit-scrollbar,
+.booking-table-wrap::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-.table-wrap::-webkit-scrollbar-thumb {
+.table-wrap::-webkit-scrollbar-thumb,
+.table-responsive::-webkit-scrollbar-thumb,
+.booking-table-wrap::-webkit-scrollbar-thumb {
   background: #b0b0b0;
   border-radius: 8px;
 }
-.table-wrap::-webkit-scrollbar-track {
+.table-wrap::-webkit-scrollbar-track,
+.table-responsive::-webkit-scrollbar-track,
+.booking-table-wrap::-webkit-scrollbar-track {
   background: #ececec;
   border-radius: 8px;
 }
-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+.table-wrap > table,
+.table-responsive > table,
+.booking-table-wrap > table {
+  min-width: 720px;
+}
+.table-wrap th,
+.table-wrap td,
+.table-responsive th,
+.table-responsive td,
+.booking-table-wrap th,
+.booking-table-wrap td {
+  white-space: nowrap;
+}
 th, td {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);

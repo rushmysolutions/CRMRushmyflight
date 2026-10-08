@@ -62,6 +62,40 @@ public class RosterController(IAttendanceService attendance) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateShift(int shiftId, string name, string startTime, string endTime)
+    {
+        if (!HasAccess() || !CanManageAll())
+        {
+            return Forbid();
+        }
+
+        if (!TimeSpan.TryParse(startTime, out var start) || !TimeSpan.TryParse(endTime, out var end))
+        {
+            TempData["AttendanceError"] = "Enter start/end as HH:mm (e.g. 22:00).";
+            return RedirectToAction(nameof(Shifts));
+        }
+
+        var result = await attendance.UpdateShiftAsync(shiftId, name, start, end);
+        TempData[result.Ok ? "AttendanceSuccess" : "AttendanceError"] = result.Message;
+        return RedirectToAction(nameof(Shifts));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteShift(int shiftId)
+    {
+        if (!HasAccess() || !CanManageAll())
+        {
+            return Forbid();
+        }
+
+        var result = await attendance.DeleteShiftAsync(shiftId);
+        TempData[result.Ok ? "AttendanceSuccess" : "AttendanceError"] = result.Message;
+        return RedirectToAction(nameof(Shifts));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> SetShiftActive(int shiftId, bool isActive)
     {
         if (!HasAccess() || !CanManageAll())

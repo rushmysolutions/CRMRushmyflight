@@ -163,6 +163,10 @@
             {
                 <p>Status: <span class="badge @StatusBadgeClass(mark.Status)">@StatusLabel(mark.Status)</span></p>
             }
+            else
+            {
+                <p class="muted">Not marked</p>
+            }
             @if (mark.HasOptedIn)
             {
                 <p class="muted">Opted in@(mark.HasOptedOut ? " and out" : " (no opt-out — counts as Half Day after the day ends)") for this day.</p>

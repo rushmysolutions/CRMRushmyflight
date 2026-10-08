@@ -61,6 +61,7 @@ public class AttendanceReportsController(IAttendanceService attendance) : Contro
         }
 
         var viewerId = AttendanceAccess.GetEmployeeId(User)!.Value;
+        var viewerRole = AttendanceAccess.GetAttendanceRole(User);
         var canViewAll = AttendanceAccess.CanViewAll(User);
         var canViewTeam = AttendanceAccess.CanViewTeam(User);
         var (y, m) = AttendancePeriodHelper.Clamp(year, month);
@@ -74,11 +75,11 @@ public class AttendanceReportsController(IAttendanceService attendance) : Contro
         IReadOnlyList<EmployeeOption> employeeOptions = [];
         if (canViewAll || canViewTeam)
         {
-            employeeOptions = await attendance.GetEmployeeFilterOptionsAsync();
+            employeeOptions = await attendance.GetEmployeeFilterOptionsAsync(viewerRole);
         }
 
         var rows = await attendance.GetMonthlySummariesAsync(
-            y, m, employeeId, viewerId, canViewAll, canViewTeam, q);
+            y, m, employeeId, viewerId, canViewAll, canViewTeam, viewerRole, q);
 
         var vm = new MonthlyReportViewModel
         {

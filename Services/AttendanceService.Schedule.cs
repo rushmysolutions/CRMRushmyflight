@@ -64,6 +64,71 @@ public partial class AttendanceService
         return (true, $"Shift \"{trimmed}\" saved ({label}).");
     }
 
+    public async Task<(bool Ok, string Message)> UpdateShiftAsync(
+        int shiftId,
+        string name,
+        TimeSpan start,
+        TimeSpan end)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return (false, "Shift name is required.");
+        }
+
+        if (start == end)
+        {
+            return (false, "Start and end time cannot be the same.");
+        }
+
+        var shift = await db.ShiftTemplates.FirstOrDefaultAsync(s => s.ShiftId == shiftId);
+        if (shift is null)
+        {
+            return (false, "Shift not found.");
+        }
+
+        var trimmed = name.Trim();
+        if (await db.ShiftTemplates.AnyAsync(s => s.ShiftId != shiftId && s.Name == trimmed))
+        {
+            return (false, "A shift with this name already exists.");
+        }
+
+        shift.Name = trimmed;
+        shift.StartTime = start;
+        shift.EndTime = end;
+        await db.SaveChangesAsync();
+
+        var label = AttendanceClock.FormatShift(start, end);
+        return (true, $"Shift \"{trimmed}\" updated ({label}).");
+    }
+
+    public async Task<(bool Ok, string Message)> DeleteShiftAsync(int shiftId)
+    {
+        var shift = await db.ShiftTemplates.FirstOrDefaultAsync(s => s.ShiftId == shiftId);
+        if (shift is null)
+        {
+            return (false, "Shift not found.");
+        }
+
+        var name = shift.Name;
+
+        // Clear references so delete is safe (FK is SetNull, but be explicit)
+        await db.TeamSchedules
+            .Where(s => s.ShiftId == shiftId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ShiftId, (int?)null));
+
+        await db.EmployeeSchedules
+            .Where(s => s.ShiftId == shiftId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ShiftId, (int?)null));
+
+        await db.RosterEntries
+            .Where(r => r.ShiftId == shiftId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ShiftId, (int?)null));
+
+        db.ShiftTemplates.Remove(shift);
+        await db.SaveChangesAsync();
+        return (true, $"Shift \"{name}\" deleted. Teams/employees using it now have no shift set.");
+    }
+
     public async Task<(bool Ok, string Message)> SetShiftActiveAsync(int shiftId, bool isActive)
     {
         var shift = await db.ShiftTemplates.FirstOrDefaultAsync(s => s.ShiftId == shiftId);

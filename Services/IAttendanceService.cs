@@ -15,8 +15,11 @@ public interface IAttendanceService
 
     Task<IReadOnlyList<EmployeeListItem>> GetEmployeesAsync(string? search = null);
 
-    /// <summary>Light list for dropdowns (id + code/name only).</summary>
-    Task<IReadOnlyList<EmployeeOption>> GetEmployeeFilterOptionsAsync();
+    /// <summary>
+    /// Light list for Monthly dropdown.
+    /// SysAdmin sees everyone; Admin/HR see everyone except SystemAdministrator.
+    /// </summary>
+    Task<IReadOnlyList<EmployeeOption>> GetEmployeeFilterOptionsAsync(string? viewerRole);
 
     Task<IReadOnlyList<TeamOption>> GetTeamsAsync();
 
@@ -93,6 +96,7 @@ public interface IAttendanceService
         int? viewerEmployeeId,
         bool canViewAll,
         bool canViewTeam,
+        string? viewerRole,
         string? search = null);
 
     Task<(bool Ok, string Message, int Count)> CalculateMonthAsync(
@@ -124,6 +128,10 @@ public interface IAttendanceService
     Task<IReadOnlyList<ShiftListItem>> GetShiftsAsync(bool activeOnly = true);
 
     Task<(bool Ok, string Message)> CreateShiftAsync(string name, TimeSpan start, TimeSpan end);
+
+    Task<(bool Ok, string Message)> UpdateShiftAsync(int shiftId, string name, TimeSpan start, TimeSpan end);
+
+    Task<(bool Ok, string Message)> DeleteShiftAsync(int shiftId);
 
     Task<(bool Ok, string Message)> SetShiftActiveAsync(int shiftId, bool isActive);
 
