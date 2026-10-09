@@ -80,7 +80,7 @@
                     }
                     else
                     {
-                        <span class="badge badge-info">Holiday</span>
+                        <span class="badge badge-success">Holiday</span>
                     }
                 </td>
                 <td>
@@ -88,8 +88,9 @@
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="holidayId" value="@h.HolidayId" />
                         <input type="hidden" name="year" value="@year" />
-                        <button type="submit" class="btn-link unlock"
-                                onclick="return confirm('Remove holiday @h.Name?');">Delete</button>
+                        <button type="submit" class="btn-link unlock" onclick="return confirm('Remove holiday @h.Name?');">
+                             <i class="fa-solid fa-trash"></i>
+                        </button>
                     </form>
                 </td>
             </tr>

@@ -11,7 +11,7 @@
     <h2>@(isNew ? "Add employee" : "Edit employee")</h2>
 </header>
 
-<section class="form-section">
+<section class="form-section form-common">
     <form method="post" asp-action="@(isNew ? "Create" : "Edit")">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="EmployeeId" />

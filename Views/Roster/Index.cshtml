@@ -97,7 +97,7 @@
                 <td>@r.DefaultWeekOffs</td>
                 @foreach (var cell in r.Days)
                 {
-                    <td style="text-align:center;">
+                    <td>
                         @if (Model.CanEdit)
                         {
                             <form asp-action="ToggleWeekOff" method="post" style="margin:0;">

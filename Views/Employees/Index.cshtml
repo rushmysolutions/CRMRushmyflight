@@ -60,23 +60,29 @@
                 <td>@(e.Department ?? "—")</td>
                 <td>@(e.TeamName ?? "—")</td>
                 <td>@(e.IsActive ? "Active" : "Inactive")</td>
-                <td>
-                    <a class="link" asp-action="Edit" asp-route-id="@e.EmployeeId">Edit</a>
+                <td align="right">
+                    <a class="link link-blue" asp-action="Edit" asp-route-id="@e.EmployeeId">
+                        <i class="fa-regular fa-pen-to-square"></i>
+                    </a>
                     @if (AttendanceAccess.CanManageAllRosters(User))
                     {
-                        <text> · </text>
-                        <a class="link" asp-controller="Roster" asp-action="EmployeeSchedule" asp-route-employeeId="@e.EmployeeId">Schedule</a>
+                        
+                        <a class="link link-green" asp-controller="Roster" asp-action="EmployeeSchedule" asp-route-employeeId="@e.EmployeeId">
+                                <i class="fa-regular fa-calendar-days"></i>
+                        </a>
                     }
                     @if (AttendanceAccess.IsSystemAdministrator(User))
                     {
-                        <text> · </text>
+                      
                         <form asp-action="Delete" method="post" class="inline-form"
                               onsubmit="return confirm('Delete @e.EmpCode — @e.FullName? This cannot be undone.');"
                               style="display:inline;">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@e.EmployeeId" />
                             <input type="hidden" name="q" value="@search" />
-                            <button type="submit" class="link" style="background:none;border:none;padding:0;color:var(--danger);cursor:pointer;">Delete</button>
+                            <button type="submit" class="link link-red" style="background:none;border:none;padding:0;color:var(--danger);cursor:pointer;">
+                               <i class="fa-solid fa-trash"></i>
+                            </button>
                         </form>
                     }
                 </td>

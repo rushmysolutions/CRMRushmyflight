@@ -104,12 +104,12 @@
 @if (canHrMark && Model.CanEdit && !Model.IsLocked)
 {
     <section class="panel" style="margin-bottom: 20px;">
-        <h3>HR: update status</h3>
+        <h3>HR: Update Status</h3>
         <p class="muted">Employees use Opt-in / Opt-out. Use this to set Leave, Absent, WFH, etc.</p>
         <form asp-controller="Attendance" asp-action="Mark" method="post" class="attendance-form">
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmployeeId" value="@Model.EmployeeId" />
-            <div class="form-grid">
+            <div class="form-grid max-w-600">
                 <div class="form-field">
                     <label>Date</label>
                     <input type="date" name="AttendanceDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
@@ -167,7 +167,7 @@ else if (Model.IsLocked)
                 <td>
                     @if (!string.IsNullOrEmpty(d.Status))
                     {
-                        <span class="badge @(string.Equals(d.Status, "WFH", StringComparison.OrdinalIgnoreCase) ? "badge-info" : "badge-muted")">
+                        <span class="badge @(string.Equals(d.Status, "WFH", StringComparison.OrdinalIgnoreCase) ? "badge-info" : "badge-success")">
                             @(d.Status == "HalfDay" ? "Half Day" : d.Status)
                         </span>
                     }

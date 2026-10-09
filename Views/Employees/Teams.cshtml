@@ -41,9 +41,9 @@
     <table>
         <thead>
             <tr>
-                <th>Id</th>
-                <th>Name</th>
-                <th></th>
+                <th width="5%">Id</th>
+                <th width="90%">Name</th>
+                <th width="5%"></th>
             </tr>
         </thead>
         <tbody>
@@ -55,7 +55,7 @@
                 <td>
                     @if (AttendanceAccess.CanManageAllRosters(User))
                     {
-                        <a class="link" asp-controller="Roster" asp-action="TeamSchedule" asp-route-teamId="@t.TeamId">Schedule</a>
+                            <a class="link" asp-controller="Roster" asp-action="TeamSchedule" asp-route-teamId="@t.TeamId"><i class="fa-regular fa-calendar-days" style="font-size: 18px;"></i></a>
                     }
                 </td>
             </tr>
