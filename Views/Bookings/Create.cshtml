@@ -26,7 +26,7 @@
     <div class="alert validation-summary" asp-validation-summary="All"></div>
 }
 
-<form class="booking-form" method="post" asp-action="@(isEdit ? "Edit" : "Create")">
+<form class="booking-form" method="post" enctype="multipart/form-data" asp-action="@(isEdit ? "Edit" : "Create")">
     @Html.AntiForgeryToken()
     @if (isEdit)
     {
@@ -85,6 +85,11 @@
                 <label asp-for="Tfn">TFN</label>
                 <input asp-for="Tfn" placeholder="- Select or enter -" />
             </div>
+        </div>
+        <div class="form-field attachment-field">
+            <label for="attachment-files">Attachments</label>
+            <input type="file" id="attachment-files" name="files" multiple />
+            <small class="field-hint">Max 50 MB total. Booking save hone ke baad files upload hongi.</small>
         </div>
     </section>
 

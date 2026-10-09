@@ -1,10 +1,12 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using RushMyBookings.Crm.Models;
 using RushMyBookings.Crm.Services;
 using RushMyBookings.Crm.ViewModels;
+using System.Net;
+using System.Security.Claims;
+using static System.Net.WebRequestMethods;
 
 namespace RushMyBookings.Crm.Controllers;
 
@@ -16,10 +18,9 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         var model = await BuildCreateViewModelAsync();
         return View(model);
     }
-
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateBookingViewModel model)
+    public async Task<IActionResult> Create(CreateBookingViewModel model, IFormFile[]? files)
     {
         model.BookingTypes = await DataService.GetBookingTypesAsync();
 
@@ -37,8 +38,11 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
         try
         {
-            var (_, referenceNo) = await DataService.CreateBookingAsync(model, userId);
+            var (bookId, referenceNo) = await DataService.CreateBookingAsync(model, userId);
             TempData["BookingCreated"] = referenceNo;
+
+            await SaveAttachmentsAsync(bookId, files);
+
             return RedirectToAction(nameof(Index));
         }
         catch (DbUpdateException ex) when (ex.InnerException is MySqlException mysql)
@@ -58,6 +62,50 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         return View(model);
     }
 
+
+    //[HttpPost]
+    //[ValidateAntiForgeryToken]
+    //public async Task<IActionResult> Create(CreateBookingViewModel model, IFormFile[]? files)
+    //{
+    //    model.BookingTypes = await DataService.GetBookingTypesAsync();
+
+    //    if (!ValidateBookingForm(model))
+    //    {
+    //        if (string.IsNullOrWhiteSpace(model.ReferenceNo))
+    //        {
+    //            model.ReferenceNo = await DataService.GenerateNextReferenceNoAsync();
+    //        }
+
+    //        return View(model);
+    //    }
+
+    //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0";
+
+    //    try
+    //    {
+    //        var (bookId, referenceNo) = await DataService.CreateBookingAsync(model, userId);
+    //        TempData["BookingCreated"] = referenceNo;
+    //        await SaveAttachmentsAsync(bookId, files);
+
+    //        return RedirectToAction(nameof(Index));
+    //    }
+    //    catch (DbUpdateException ex) when (ex.InnerException is MySqlException mysql)
+    //    {
+    //        ModelState.AddModelError(string.Empty, $"Database error ({mysql.Number}): {mysql.Message}");
+    //    }
+    //    catch (MySqlException ex)
+    //    {
+    //        ModelState.AddModelError(string.Empty, $"Database error ({ex.Number}): {ex.Message}");
+    //    }
+
+    //    if (string.IsNullOrWhiteSpace(model.ReferenceNo))
+    //    {
+    //        model.ReferenceNo = await DataService.GenerateNextReferenceNoAsync();
+    //    }
+
+    //    return View(model);
+    //}
+
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
@@ -72,7 +120,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(CreateBookingViewModel model)
+    public async Task<IActionResult> Edit(CreateBookingViewModel model, IFormFile[]? files)
     {
         model.BookingTypes = await DataService.GetBookingTypesAsync();
 
@@ -95,6 +143,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
             {
                 return NotFound();
             }
+            await SaveAttachmentsAsync(model.BookId!.Value, files);
 
             TempData["BookingUpdated"] = model.ReferenceNo ?? "Booking";
             return RedirectToAction(nameof(Index));
@@ -109,6 +158,26 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         }
 
         return View("Create", model);
+    }
+    private async Task SaveAttachmentsAsync(int bookingId, IFormFile[]? files)
+    {
+        if (files is null || files.Length == 0 || files.All(f => f.Length == 0))
+        {
+            return;
+        }
+
+        try
+        {
+            var count = await fileService.AddAttachmentsAsync(bookingId, files);
+            if (count > 0)
+            {
+                TempData["UploadSuccess"] = $"{count} file(s) uploaded successfully.";
+            }
+        }
+        catch (IOException ex)
+        {
+            TempData["UploadError"] = $"Booking saved, but files could not be uploaded: {ex.Message}";
+        }
     }
 
     [HttpPost]
