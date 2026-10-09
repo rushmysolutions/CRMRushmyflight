@@ -69,7 +69,9 @@
                           onsubmit="return confirm('Remove @item.IpAddress from the allow list?');">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@item.AllowedIpId" />
-                        <button type="submit" class="btn-link unlock">Delete</button>
+                        <button type="submit" class="btn-link unlock">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
                     </form>
                 </td>
             </tr>

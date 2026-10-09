@@ -82,7 +82,7 @@
                 <th>Hours</th>
                 <th>%</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th align="right">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -110,9 +110,10 @@
                         <span class="badge badge-success">@r.Status</span>
                     }
                 </td>
-                <td class="row-actions">
-                    <a class="link" asp-controller="Attendance" asp-action="Month"
-                       asp-route-id="@r.EmployeeId" asp-route-year="@Model.Year" asp-route-month="@Model.Month">Details</a>
+                    <td class="row-actions" align="right">
+                    <a class="link link-blue" title="View Detail" asp-controller="Attendance" asp-action="Month" asp-route-id="@r.EmployeeId" asp-route-year="@Model.Year" asp-route-month="@Model.Month">
+                        <i class="fa-regular fa-eye"></i>
+                   </a>
                     @if (Model.CanCloseMonth)
                     {
                         <form asp-action="SetEmployeeLock" method="post" class="inline-form">
@@ -123,14 +124,16 @@
                             @if (r.Status == MonthlyAttendanceStatus.Locked)
                             {
                                 <input type="hidden" name="lockMonth" value="false" />
-                                <button type="submit" class="btn-link unlock"
-                                        onclick="return confirm('Unlock @r.FullName for this month?');">Unlock</button>
+                                <button type="submit" class="btn-link unlock link-red" onclick="return confirm('Unlock @r.FullName for this month?');">
+                                    <i class="fa-solid fa-unlock"></i>
+                                </button>
                             }
                             else
                             {
                                 <input type="hidden" name="lockMonth" value="true" />
-                                <button type="submit" class="btn-link lock"
-                                        onclick="return confirm('Lock @r.FullName for this month?');">Lock</button>
+                                <button type="submit" class="btn-link lock link-red" onclick="return confirm('Lock @r.FullName for this month?');">
+                                    <i class="fa-solid fa-lock"></i>
+                                </button>
                             }
                         </form>
                     }
@@ -146,8 +149,38 @@
 </div>
 
 <section class="panel" style="margin-top: 24px;">
-    <h3 style="margin-top:0;">Per-day attendance</h3>
-    <p class="muted">P = Present, W = WFH, H = Half, L = Leave, A = Absent, · = not marked</p>
+    <h3 style="margin-top:0;">Per-Day Attendance</h3>
+    
+    <div class="attendance-legend">
+        <span class="legend-title">Attendance Key</span>
+
+        <div class="legend-items">
+            <span class="legend-item legend-present">
+                <span class="legend-code">P</span> Present
+            </span>
+
+            <span class="legend-item legend-wfh">
+                <span class="legend-code">W</span> WFH
+            </span>
+
+            <span class="legend-item legend-half">
+                <span class="legend-code">H</span> Half Day
+            </span>
+
+            <span class="legend-item legend-leave">
+                <span class="legend-code">L</span> Leave
+            </span>
+
+            <span class="legend-item legend-absent">
+                <span class="legend-code">A</span> Absent
+            </span>
+
+            <span class="legend-item legend-unmarked">
+                <span class="legend-code">·</span> Not Marked
+            </span>
+        </div>
+    </div>
+
     <div class="table-wrap month-day-scroll">
         <table class="month-day-grid">
             <thead>
