@@ -46,7 +46,7 @@
                 <th>Status</th>
                 <th>Opt-in</th>
                 <th>Opt-out</th>
-                <th></th>
+                <th style="text-align: center;">Month</th>
             </tr>
         </thead>
         <tbody>
@@ -59,18 +59,20 @@
                 <td>
                     @if (!string.IsNullOrEmpty(r.Status))
                     {
-                        <span class="badge @(string.Equals(r.Status, "WFH", StringComparison.OrdinalIgnoreCase) ? "badge-info" : "badge-muted")">@r.Status</span>
+                            <span class="badge @(string.Equals(r.Status, "WFH", StringComparison.OrdinalIgnoreCase) ? "badge-info" : "badge-success")" style="min-width: 100px;">@r.Status</span>
                     }
                     else
                     {
-                        <span class="muted">Not marked</span>
+                            <span class="badge badge-danger" style="min-width: 100px;">Not Marked</span>
                     }
                 </td>
                 <td>@(r.OptIn?.ToString(@"hh\:mm") ?? "—")</td>
                 <td>@(r.OptOut?.ToString(@"hh\:mm") ?? "—")</td>
-                <td>
-                    <a class="link" asp-controller="Attendance" asp-action="Month" asp-route-id="@r.EmployeeId"
-                       asp-route-year="@Model.Date.Year" asp-route-month="@Model.Date.Month">Month</a>
+                    <td style="text-align: center;">
+                   <a class="link" style="font-size: 16px; padding: 0 5px;" asp-controller="Attendance" asp-action="Month" asp-route-id="@r.EmployeeId"
+                       asp-route-year="@Model.Date.Year" asp-route-month="@Model.Date.Month">
+                            <i class="fa-regular fa-calendar-days"></i>
+                   </a>
                 </td>
             </tr>
         }
