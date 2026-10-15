@@ -95,7 +95,7 @@
                             @if (AttendanceAccess.CanManageTeamRoster(User))
                             {
                                 <a class="nav-link @(activeNav == "attendance-roster" ? "active" : "")"
-                                   asp-controller="Roster" asp-action="Index">Roster / Shifts</a>
+                                   asp-controller="Roster" asp-action="Index">@(AttendanceAccess.CanManageAllRosters(User) ? "Roster / Shifts" : "Roster")</a>
                             }
 
                             @if (AttendanceAccess.CanManageIpAddresses(User))

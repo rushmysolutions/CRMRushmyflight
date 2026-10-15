@@ -416,6 +416,29 @@ public partial class AttendanceService
         return result;
     }
 
+    /// <summary>
+    /// Teams a lead can manage: teams where they are Lead, plus their own TeamId if set.
+    /// </summary>
+    private async Task<List<int>> GetManagedTeamIdsAsync(int leadEmployeeId)
+    {
+        var ids = await db.Teams.AsNoTracking()
+            .Where(t => t.IsActive && t.LeadEmployeeId == leadEmployeeId)
+            .Select(t => t.TeamId)
+            .ToListAsync();
+
+        var myTeamId = await db.Employees.AsNoTracking()
+            .Where(e => e.EmployeeId == leadEmployeeId)
+            .Select(e => e.TeamId)
+            .FirstOrDefaultAsync();
+
+        if (myTeamId.HasValue && !ids.Contains(myTeamId.Value))
+        {
+            ids.Add(myTeamId.Value);
+        }
+
+        return ids;
+    }
+
     public async Task<RosterWeekViewModel> GetRosterWeekAsync(
         DateOnly weekStart,
         int? teamId,
@@ -428,13 +451,24 @@ public partial class AttendanceService
         var days = Enumerable.Range(0, 7).Select(i => start.AddDays(i)).ToList();
         var end = days[^1];
 
-        var teams = canManageAll
-            ? await GetTeamsAsync()
-            : await db.Teams.AsNoTracking()
-                .Where(t => t.IsActive && t.LeadEmployeeId == viewerEmployeeId)
-                .OrderBy(t => t.Name)
-                .Select(t => new TeamOption { TeamId = t.TeamId, Name = t.Name })
-                .ToListAsync();
+        List<int> managedTeamIds = [];
+        IReadOnlyList<TeamOption> teams;
+        if (canManageAll)
+        {
+            teams = await GetTeamsAsync();
+        }
+        else
+        {
+            // Team Lead: only their own team(s)
+            managedTeamIds = await GetManagedTeamIdsAsync(viewerEmployeeId);
+            teams = managedTeamIds.Count == 0
+                ? []
+                : await db.Teams.AsNoTracking()
+                    .Where(t => t.IsActive && managedTeamIds.Contains(t.TeamId))
+                    .OrderBy(t => t.Name)
+                    .Select(t => new TeamOption { TeamId = t.TeamId, Name = t.Name })
+                    .ToListAsync();
+        }
 
         // ---- 1) Employees (one query) ----
         var empQuery = db.Employees.AsNoTracking()
@@ -454,12 +488,23 @@ public partial class AttendanceService
         }
         else if (teamLeadOnly)
         {
+            // Own team only: themselves, people who report to them, or same managed team
             empQuery = empQuery.Where(e =>
+                e.EmployeeId == viewerEmployeeId ||
                 e.ReportingLeadId == viewerEmployeeId ||
-                (e.Team != null && e.Team.LeadEmployeeId == viewerEmployeeId));
+                (e.TeamId != null && managedTeamIds.Contains(e.TeamId.Value)));
+
             if (teamId.HasValue)
             {
-                empQuery = empQuery.Where(e => e.TeamId == teamId);
+                // Extra safety: lead cannot pick another team's filter
+                if (!managedTeamIds.Contains(teamId.Value))
+                {
+                    empQuery = empQuery.Where(e => false);
+                }
+                else
+                {
+                    empQuery = empQuery.Where(e => e.TeamId == teamId);
+                }
             }
         }
         else

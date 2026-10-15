@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Filters;
 using RushMyBookings.Crm.Services;
 
 namespace RushMyBookings.Crm.Controllers;
@@ -10,17 +9,6 @@ public abstract class CrmControllerBase(ICrmDataService dataService) : Controlle
 {
     protected ICrmDataService DataService { get; } = dataService;
 
-    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
-    {
-        try
-        {
-            ViewBag.DatabaseConnected = await DataService.CanConnectAsync();
-        }
-        catch
-        {
-            ViewBag.DatabaseConnected = false;
-        }
-
-        await base.OnActionExecutionAsync(context, next);
-    }
+    // No per-request DB probe. ViewBag.DatabaseConnected was unused in views,
+    // and CanConnectAsync hit MySQL every ~1 minute (cache miss) on Home + CRM pages.
 }

@@ -1583,8 +1583,15 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
             return false;
         }
 
-        return target.ReportingLeadId == viewerEmployeeId
-               || target.Team?.LeadEmployeeId == viewerEmployeeId;
+        // Team Lead may touch: reports, people on teams they lead, or same team as themselves
+        if (target.ReportingLeadId == viewerEmployeeId
+            || target.Team?.LeadEmployeeId == viewerEmployeeId)
+        {
+            return true;
+        }
+
+        var managedTeamIds = await GetManagedTeamIdsAsync(viewerEmployeeId);
+        return target.TeamId.HasValue && managedTeamIds.Contains(target.TeamId.Value);
     }
 
     private async Task ApplyMissingOptOutsAsync(int year, int month)

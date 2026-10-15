@@ -20,7 +20,16 @@
 <header class="page-header row">
     <div>
         <h2>Roster</h2>
-        <p>Plan future week-offs. Click a day to toggle Off / Work. Team + employee schedules set the defaults.</p>
+        <p>
+            @if (AttendanceAccess.CanManageAllRosters(User))
+            {
+                <text>Plan future week-offs for any team. Click a day to toggle Off / Work.</text>
+            }
+            else
+            {
+                <text>Plan future week-offs for <strong>your team only</strong>. Click a day to toggle Off / Work.</text>
+            }
+        </p>
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
         @if (AttendanceAccess.CanManageAllRosters(User))
@@ -126,7 +135,18 @@
         }
         @if (Model.Rows.Count == 0)
         {
-            <tr><td colspan="@(4 + Model.Days.Count)" class="muted">No employees for this filter.</td></tr>
+            <tr>
+                <td colspan="@(4 + Model.Days.Count)" class="muted">
+                    @if (!AttendanceAccess.CanManageAllRosters(User) && Model.Teams.Count == 0)
+                    {
+                        <text>No team linked to your login yet. Ask Admin/HR to set you as team lead or assign your Team.</text>
+                    }
+                    else
+                    {
+                        <text>No employees for this filter.</text>
+                    }
+                </td>
+            </tr>
         }
         </tbody>
     </table>

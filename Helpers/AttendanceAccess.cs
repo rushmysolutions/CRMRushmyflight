@@ -83,7 +83,11 @@ public static class AttendanceAccess
             or AttendanceRoles.HR;
     }
 
-    /// <summary>Team Lead can plan week-offs for their own team members.</summary>
+    /// <summary>
+    /// Roster page access.
+    /// SysAdmin / Admin / HR → all teams.
+    /// Team Lead → own team week-offs only (no shift templates).
+    /// </summary>
     public static bool CanManageTeamRoster(ClaimsPrincipal user)
     {
         var role = GetAttendanceRole(user);
