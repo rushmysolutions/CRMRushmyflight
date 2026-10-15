@@ -70,15 +70,9 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
                 return View(model);
             }
 
-            try
-            {
-                await dataService.GetDashboardStatsAsync();
-            }
-            catch
-            {
-                // Preload is best-effort so login is not blocked if stats fail.
-            }
-
+            // Sign in immediately — do not preload dashboard stats here.
+            // Home is a welcome page only; full-table COUNT/SUM/GROUP BY on bookings
+            // made login feel random-slow whenever the 3‑minute cache was cold.
             await SignInCrmUserAsync(user, model.RememberMe);
             return RedirectToLocal(model.ReturnUrl, preferAttendance: false);
         }

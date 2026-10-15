@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RushMyBookings.Crm.Services;
 
 namespace RushMyBookings.Crm.Controllers;
 
-public class HomeController(ICrmDataService dataService) : CrmControllerBase(dataService)
+/// <summary>
+/// Welcome page only — keep this thin so post-login redirect stays fast.
+/// </summary>
+[Authorize]
+public class HomeController : Controller
 {
     public IActionResult Index()
     {
