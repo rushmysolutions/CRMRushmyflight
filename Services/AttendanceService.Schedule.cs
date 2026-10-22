@@ -158,6 +158,7 @@ public partial class AttendanceService
             TeamId = teamId,
             Title = $"Team schedule — {team.Name}",
             ShiftId = row?.ShiftId,
+            NoFixedShift = row?.IsFlexibleTiming ?? false,
             InheritShift = false,
             InheritWeekOff = false,
             OffMon = WeekOffDays.IsOff(mask, DayOfWeek.Monday),
@@ -171,7 +172,9 @@ public partial class AttendanceService
         };
     }
 
-    public async Task<(bool Ok, string Message)> SaveTeamScheduleAsync(ScheduleEditViewModel model)
+    public async Task<(bool Ok, string Message)> SaveTeamScheduleAsync(
+        ScheduleEditViewModel model,
+        bool canSetFlexibleTiming)
     {
         if (model.TeamId is null or <= 0)
         {
@@ -188,23 +191,39 @@ public partial class AttendanceService
             model.OffFri, model.OffSat, model.OffSun);
 
         var row = await db.TeamSchedules.FirstOrDefaultAsync(s => s.TeamId == model.TeamId);
+
+        // Only System Administrator / Administrator may change flexible timing.
+        // Anyone else saving this form keeps whatever is already stored.
+        var flexible = canSetFlexibleTiming
+            ? model.NoFixedShift
+            : row?.IsFlexibleTiming ?? false;
+
+        // Flexible team has no shift timing at all — clear it so nothing blocks punches.
+        int? shiftId = flexible ? null : model.ShiftId;
+
         if (row is null)
         {
             db.TeamSchedules.Add(new TeamSchedule
             {
                 TeamId = model.TeamId.Value,
-                ShiftId = model.ShiftId,
+                ShiftId = shiftId,
+                IsFlexibleTiming = flexible,
                 WeekOffMask = mask
             });
         }
         else
         {
-            row.ShiftId = model.ShiftId;
+            row.ShiftId = shiftId;
+            row.IsFlexibleTiming = flexible;
             row.WeekOffMask = mask;
         }
 
         await db.SaveChangesAsync();
-        return (true, $"Team schedule saved. Week-offs: {WeekOffDays.Describe(mask)}.");
+
+        var timing = flexible
+            ? "Timing: flexible (no fixed shift — opt in/out any time)."
+            : "Timing: fixed shift.";
+        return (true, $"Team schedule saved. {timing} Week-offs: {WeekOffDays.Describe(mask)}.");
     }
 
     public async Task<ScheduleEditViewModel?> GetEmployeeScheduleEditAsync(int employeeId)
@@ -221,10 +240,15 @@ public partial class AttendanceService
         var inheritWeekOff = row?.WeekOffMask is null;
         var mask = row?.WeekOffMask ?? WeekOffDays.Weekend;
 
+        var teamFlexible = emp.TeamId is int empTeamId
+            && await db.TeamSchedules.AsNoTracking()
+                .AnyAsync(s => s.TeamId == empTeamId && s.IsFlexibleTiming);
+
         return new ScheduleEditViewModel
         {
             EmployeeId = employeeId,
             Title = $"Employee schedule — {emp.EmpCode} {emp.FullName}",
+            TeamNoFixedShift = teamFlexible,
             ShiftId = row?.ShiftId,
             InheritShift = row?.ShiftId is null,
             InheritWeekOff = inheritWeekOff,
@@ -306,9 +330,18 @@ public partial class AttendanceService
                 .FirstOrDefaultAsync(s => s.TeamId == teamId);
         }
 
+        // A personal shift override still wins. Otherwise a flexible team
+        // means no fixed timing at all for this employee.
+        var isFlexible = empSched?.ShiftId is null
+            && teamSched?.IsFlexibleTiming == true;
+
         // Employee override wins; else team; else no shift (calendar day).
         ShiftTemplate? shift = null;
-        if (empSched?.ShiftId is not null)
+        if (isFlexible)
+        {
+            shift = null;
+        }
+        else if (empSched?.ShiftId is not null)
         {
             shift = empSched.Shift
                 ?? await db.ShiftTemplates.AsNoTracking()
@@ -338,7 +371,7 @@ public partial class AttendanceService
         if (roster is not null)
         {
             isWeekOff = string.Equals(roster.EntryType, RosterEntryTypes.WeekOff, StringComparison.OrdinalIgnoreCase);
-            if (roster.ShiftId is int rosterShiftId)
+            if (!isFlexible && roster.ShiftId is int rosterShiftId)
             {
                 shift = await db.ShiftTemplates.AsNoTracking()
                     .FirstOrDefaultAsync(s => s.ShiftId == rosterShiftId)
@@ -351,14 +384,36 @@ public partial class AttendanceService
             isWeekOff = WeekOffDays.IsOff(weekOffMask, attendanceDate.DayOfWeek);
         }
 
+        // Flexible staff may start late at night and finish after midnight.
+        // If yesterday is still opted in (no opt-out), that open day stays "today"
+        // until they opt out — then the calendar day takes over again.
+        if (isFlexible)
+        {
+            var yesterday = DateOnly.FromDateTime(now).AddDays(-1);
+            if (attendanceDate == DateOnly.FromDateTime(now))
+            {
+                var openYesterday = await db.DailyAttendances.AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.EmployeeId == employeeId
+                        && a.AttendanceDate == yesterday
+                        && a.OptInTime != null
+                        && a.OptOutTime == null);
+                if (openYesterday is not null)
+                {
+                    attendanceDate = yesterday;
+                    isWeekOff = false;
+                }
+            }
+        }
+
         return new ResolvedWorkDay
         {
             AttendanceDate = attendanceDate,
-            ShiftName = shift?.Name,
+            ShiftName = isFlexible ? "Flexible timing" : shift?.Name,
             ShiftStart = shift?.StartTime,
             ShiftEnd = shift?.EndTime,
             IsWeekOff = isWeekOff,
-            WeekOffMask = weekOffMask
+            WeekOffMask = weekOffMask,
+            IsFlexibleTiming = isFlexible
         };
     }
 
@@ -616,9 +671,11 @@ public partial class AttendanceService
                     ? (emp.FirstName ?? "")
                     : $"{emp.FirstName} {emp.LastName}",
                 TeamName = emp.Team?.Name,
-                ShiftLabel = shift is null
-                    ? "No shift set"
-                    : $"{shift.Name} ({AttendanceClock.FormatShift(shift.StartTime, shift.EndTime)})",
+                ShiftLabel = empSched?.ShiftId is null && teamSched?.IsFlexibleTiming == true
+                    ? "Flexible — any time"
+                    : shift is null
+                        ? "No shift set"
+                        : $"{shift.Name} ({AttendanceClock.FormatShift(shift.StartTime, shift.EndTime)})",
                 DefaultWeekOffs = WeekOffDays.Describe(weekOffMask),
                 Days = dayCells
             });

@@ -39,11 +39,45 @@
                     <span>Use team shift (no personal override)</span>
                 </label>
             </div>
+            @if (Model.TeamNoFixedShift)
+            {
+                <p class="muted" style="margin-top:0;">
+                    This employee’s team has <strong>flexible timing</strong> (no fixed shift).
+                    Using the team default means they can opt in / opt out at any time.
+                    Picking a personal shift above makes only this employee fixed-time.
+                </p>
+            }
+        }
+        else if (AttendanceAccess.CanSetFlexibleTiming(User))
+        {
+            @* System Administrator / Administrator only *@
+            <div class="form-field">
+                <label class="remember">
+                    <input asp-for="NoFixedShift" id="noFixedShift" />
+                    <span><strong>No fixed shift timing</strong> — team can opt in / opt out at any time</span>
+                </label>
+                <p class="muted" style="margin:6px 0 0;">
+                    Week-offs still apply. Employees with a personal shift override stay on that shift.
+                </p>
+            </div>
+        }
+        else if (Model.NoFixedShift)
+        {
+            <p class="muted">
+                This team has <strong>flexible timing</strong> (no fixed shift).
+                Only System Administrator / Administrator can change this.
+            </p>
+        }
+        else
+        {
+            <p class="muted">
+                Only System Administrator / Administrator can give a team flexible (no fixed shift) timing.
+            </p>
         }
 
-        <div class="form-field">
+        <div class="form-field" id="shiftField">
             <label asp-for="ShiftId">Shift</label>
-            <select asp-for="ShiftId">
+            <select asp-for="ShiftId" id="shiftId">
                 <option value="">— None (calendar day / midnight) —</option>
                 @foreach (var s in Model.Shifts)
                 {
@@ -88,3 +122,19 @@
         </div>
     </form>
 </section>
+
+@section Scripts {
+    <script>
+        (function () {
+            var flexible = document.getElementById('noFixedShift');
+            var shift = document.getElementById('shiftId');
+            if (!flexible || !shift) return;
+            function sync() {
+                // Flexible team has no shift to pick — disable the dropdown.
+                shift.disabled = flexible.checked;
+            }
+            flexible.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+}
