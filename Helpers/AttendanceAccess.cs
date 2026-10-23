@@ -42,6 +42,16 @@ public static class AttendanceAccess
         return role is AttendanceRoles.SystemAdministrator or AttendanceRoles.Admin;
     }
 
+    /// <summary>
+    /// "No fixed shift" for a team — System Administrator and Administrator only.
+    /// HR can edit week-offs / assign a normal shift, but cannot make a team flexible.
+    /// </summary>
+    public static bool CanSetFlexibleTiming(ClaimsPrincipal user)
+    {
+        var role = GetAttendanceRole(user);
+        return role is AttendanceRoles.SystemAdministrator or AttendanceRoles.Admin;
+    }
+
     /// <summary>Close / lock / unlock month — System Administrator only.</summary>
     public static bool CanCloseMonth(ClaimsPrincipal user)
     {

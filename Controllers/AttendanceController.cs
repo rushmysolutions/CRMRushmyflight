@@ -39,9 +39,12 @@ public class AttendanceController(IAttendanceService attendance) : Controller
         var (y, m) = AttendancePeriodHelper.Clamp(year, month);
         var work = await attendance.ResolveWorkDayAsync(employeeId);
         var today = work.AttendanceDate;
-        ViewBag.ShiftLabel = work.HasShift
-            ? $"{work.ShiftName} {AttendanceClock.FormatShift(work.ShiftStart!.Value, work.ShiftEnd!.Value)}"
-            : null;
+        ViewBag.ShiftLabel = work.IsFlexibleTiming
+            ? "Flexible timing — opt in / opt out any time"
+            : work.HasShift
+                ? $"{work.ShiftName} {AttendanceClock.FormatShift(work.ShiftStart!.Value, work.ShiftEnd!.Value)}"
+                : null;
+        ViewBag.IsFlexibleTiming = work.IsFlexibleTiming;
         ViewBag.IsWeekOff = work.IsWeekOff;
 
         DateOnly selectedDate = today;

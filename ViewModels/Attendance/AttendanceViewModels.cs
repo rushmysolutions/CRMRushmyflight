@@ -323,6 +323,13 @@ public class ScheduleEditViewModel
     public int? EmployeeId { get; set; }
     public string Title { get; set; } = string.Empty;
     public int? ShiftId { get; set; }
+
+    /// <summary>Team only: no fixed shift — members opt in/out at any time.</summary>
+    public bool NoFixedShift { get; set; }
+
+    /// <summary>Employee only: their team currently has flexible timing (info for the form).</summary>
+    public bool TeamNoFixedShift { get; set; }
+
     public bool InheritShift { get; set; }
     public bool InheritWeekOff { get; set; }
     public bool OffMon { get; set; }
@@ -374,5 +381,9 @@ public class ResolvedWorkDay
     public TimeSpan? ShiftEnd { get; set; }
     public bool IsWeekOff { get; set; }
     public byte WeekOffMask { get; set; } = WeekOffDays.Weekend;
-    public bool HasShift => ShiftStart.HasValue && ShiftEnd.HasValue;
+
+    /// <summary>Team has no fixed shift — opt in/out is allowed at any time of day.</summary>
+    public bool IsFlexibleTiming { get; set; }
+
+    public bool HasShift => !IsFlexibleTiming && ShiftStart.HasValue && ShiftEnd.HasValue;
 }

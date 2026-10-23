@@ -246,7 +246,7 @@
 
                 <div class="summary-title">
                     <i class="fa-regular fa-calendar-check"></i>
-                    @(mark.AttendanceDate == today ? "Today's Summary" : "Attendance Summary")
+                    Today's Summary
                 </div>
 
                 <div class="summary-row">
@@ -254,11 +254,7 @@
                         <i class="fa-regular fa-clock"></i>
                         Shift
                     </span>
-                    <strong>
-                        @(ViewBag.ShiftLabel is string shift && !string.IsNullOrWhiteSpace(shift)
-                            ? shift
-                            : "09:30 AM – 06:30 PM")
-                    </strong>
+                    <strong>@(ViewBag.ShiftLabel as string ?? "No fixed shift")</strong>
                 </div>
 
                 <div class="summary-row">
@@ -274,50 +270,8 @@
                         <i class="fa-solid fa-circle-check"></i>
                         Attendance
                     </span>
-                    <strong class="@(mark.HasOptedOut ? "status-present" :
-                                      mark.HasOptedIn ? "status-pending" :
-                                      !string.IsNullOrWhiteSpace(mark.Status) ? "status-present" :
-                                      "status-pending")">
-                        @if (mark.HasOptedOut)
-                        {
-                            <text>@StatusLabel(mark.Status) · Completed</text>
-                        }
-                        else if (mark.HasOptedIn)
-                        {
-                            <text>@StatusLabel(mark.Status) · In Progress</text>
-                        }
-                        else if (!string.IsNullOrWhiteSpace(mark.Status))
-                        {
-                            <text>@StatusLabel(mark.Status)</text>
-                        }
-                        else
-                        {
-                            <text>Not marked</text>
-                        }
-                    </strong>
+                    <strong class="status-pending">Not marked</strong>
                 </div>
-
-                @if (mark.OptInTime.HasValue)
-                {
-                    <div class="summary-row">
-                        <span>
-                            <i class="fa-solid fa-right-to-bracket"></i>
-                            Opt-in Time
-                        </span>
-                        <strong>@DateTime.Today.Add(mark.OptInTime.Value).ToString("hh:mm tt")</strong>
-                    </div>
-                }
-
-                @if (mark.OptOutTime.HasValue)
-                {
-                    <div class="summary-row">
-                        <span>
-                            <i class="fa-solid fa-right-from-bracket"></i>
-                            Opt-out Time
-                        </span>
-                        <strong>@DateTime.Today.Add(mark.OptOutTime.Value).ToString("hh:mm tt")</strong>
-                    </div>
-                }
 
             </div>
         }

@@ -137,7 +137,8 @@ public interface IAttendanceService
 
     Task<ScheduleEditViewModel?> GetTeamScheduleEditAsync(int teamId);
 
-    Task<(bool Ok, string Message)> SaveTeamScheduleAsync(ScheduleEditViewModel model);
+    /// <summary>canSetFlexibleTiming = System Administrator / Administrator only.</summary>
+    Task<(bool Ok, string Message)> SaveTeamScheduleAsync(ScheduleEditViewModel model, bool canSetFlexibleTiming);
 
     Task<ScheduleEditViewModel?> GetEmployeeScheduleEditAsync(int employeeId);
 

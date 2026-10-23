@@ -157,7 +157,10 @@ public class RosterController(IAttendanceService attendance) : Controller
 
         if (model.TeamId.HasValue)
         {
-            var result = await attendance.SaveTeamScheduleAsync(model);
+            // Flexible ("no fixed shift") may only be changed by SysAdmin / Admin.
+            var result = await attendance.SaveTeamScheduleAsync(
+                model,
+                AttendanceAccess.CanSetFlexibleTiming(User));
             TempData[result.Ok ? "AttendanceSuccess" : "AttendanceError"] = result.Message;
             return RedirectToAction(nameof(TeamSchedule), new { teamId = model.TeamId });
         }
