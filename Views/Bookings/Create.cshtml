@@ -1,3 +1,4 @@
+@using static RushMyBookings.Crm.Helpers.FormatHelper
 @model CreateBookingViewModel
 @{
     var isEdit = Model.IsEdit;
@@ -6,8 +7,53 @@
     var days = Enumerable.Range(1, 31);
     var months = Enumerable.Range(1, 12);
     var years = Enumerable.Range(DateTime.Now.Year - 100, 101).Reverse();
-}
+    var restricted = CrmAccess.IsRestricted(User);
+    var uploadsBase = Url.Content("~/uploads/bookings/");
+    var maskSensitive = isEdit && restricted;
 
+}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+<style>
+    .pnr-source {
+        display: none;
+    }
+
+    .pnr-editor {
+        background: #fff;
+    }
+
+        .pnr-editor .ql-editor {
+            min-height: 140px;
+            font-family: Consolas, "Courier New", monospace; /* keeps GDS PNR alignment */
+            font-size: 13px;
+        }
+    /* stops your global button/form styles leaking into the toolbar */
+    .form-field .ql-toolbar button {
+        background: none;
+        border: none;
+        box-shadow: none;
+        padding: 3px 5px;
+        width: 28px;
+        height: 24px;
+        min-width: 0;
+    }
+
+    .pnr-editor .ql-editor img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .pnr-status {
+        display: block;
+        margin-top: 4px;
+        font-size: 12px;
+        color: #666;
+    }
+
+        .pnr-status.is-error {
+            color: #c62828;
+        }
+</style>
 <nav class="breadcrumb">
     <a asp-controller="Home" asp-action="Index">Home</a>
     <span>/</span>
@@ -70,7 +116,9 @@
         </header>
         <div class="form-field">
             <label asp-for="FlightPnr">PNR</label>
-            <textarea asp-for="FlightPnr" rows="5" placeholder="Paste PNR data here..."></textarea>
+            <div id="pnr-editor" class="pnr-editor"></div>
+            <textarea asp-for="FlightPnr" class="pnr-source" rows="5" placeholder="Paste PNR data here..."></textarea>
+            <small id="pnr-status" class="pnr-status"></small>
         </div>
         <div class="form-grid">
             <div class="form-field">
@@ -81,9 +129,28 @@
                 <label asp-for="ReturnDate">Returning Date</label>
                 <input asp-for="ReturnDate" type="date" />
             </div>
-            <div class="form-field">
+            @*  <div class="form-field">
                 <label asp-for="Tfn">TFN</label>
                 <input asp-for="Tfn" placeholder="- Select or enter -" />
+            </div> *@
+
+            <div class="form-field">
+                <label asp-for="Tfn">TFN</label>
+                <select asp-for="Tfn">
+                    <option value="">- Select TFN -</option>
+                    @foreach (var t in Model.Tfns)
+                    {
+                        <option value="@t.TfnNumber">
+                            @t.TfnNumber - @(RushMyBookings.Crm.Entities.Tfn.Types.GetValueOrDefault(t.Type, t.Type))
+                        </option>
+                    }
+
+                    @* Edit me purana TFN ab In-Active ho gaya ho to bhi selected dikhe, value lost na ho *@
+                    @if (!string.IsNullOrEmpty(Model.Tfn) && !Model.Tfns.Any(t => t.TfnNumber == Model.Tfn))
+                    {
+                        <option value="@Model.Tfn">@Model.Tfn (In-Active)</option>
+                    }
+                </select>
             </div>
         </div>
         <div class="form-field attachment-field">
@@ -185,9 +252,16 @@
                 </select>
             </div>
             <div class="form-field span-2">
-                <label asp-for="CardNumber">Credit Card No</label>
-                <input asp-for="CardNumber" placeholder="xxxx-xxxx-xxxx-xxxx" />
-                <small class="field-hint">Card number format: xxxx-xxxx-xxxx-xxxx</small>
+                <label>Credit Card No</label>
+                @if (maskSensitive)
+                {
+                    <input value="@SensitiveMask.CardLastFour(Model.CardNumber)" class="ref-readonly" readonly />
+                }
+                else
+                {
+                    <input asp-for="CardNumber" placeholder="xxxx-xxxx-xxxx-xxxx" />
+                    <small class="field-hint">Card number format: xxxx-xxxx-xxxx-xxxx</small>
+                }
             </div>
             <div class="form-field">
                 <label asp-for="ExpiryDate">Expiration Date</label>
@@ -197,17 +271,45 @@
                 <label asp-for="Cvv">CVV</label>
                 <input asp-for="Cvv" maxlength="4" />
             </div>
-            <div class="form-field">
+            @* <div class="form-field">
                 <label asp-for="InboundPhone">Inbound No.</label>
                 <input asp-for="InboundPhone" />
+            </div> *@
+            <div class="form-field">
+                <label>Inbound No.</label>
+                @if (maskSensitive)
+                {
+                    <input value="@SensitiveMask.Value(Model.InboundPhone)" class="ref-readonly" readonly />
+                }
+                else
+                {
+
+                    <input asp-for="InboundPhone" />
+                }
             </div>
             <div class="form-field">
-                <label asp-for="BillingPhone">Billing No.</label>
-                <input asp-for="BillingPhone" />
+                <label>Billing No.</label>
+                @if (maskSensitive)
+                {
+                    <input value="@SensitiveMask.Value(Model.BillingPhone)" class="ref-readonly" readonly />
+                }
+                else
+                {
+
+                    <input asp-for="BillingPhone" />
+                }
             </div>
             <div class="form-field span-2">
-                <label asp-for="Email">Email ID</label>
-                <input asp-for="Email" type="email" placeholder="Comma separated email ID" />
+                <label>Email ID</label>
+                @if (maskSensitive)
+                {
+                    <input value="@SensitiveMask.Value(Model.Email)" class="ref-readonly" readonly />
+                }
+                else
+                {
+
+                    <input asp-for="Email" type="email" placeholder="Comma separated email ID" />
+                }
             </div>
             <div class="form-field span-2">
                 <label asp-for="BillingAddress">Billing Address</label>
@@ -230,10 +332,10 @@
             <div class="form-field">
                 <label asp-for="TicketStatus">Ticket Status</label>
                 <select asp-for="TicketStatus">
-                    <option value="0">Pending</option>
-                    <option value="1">Issued</option>
-                    <option value="2">Cancelled</option>
-                    <option value="3">Changed</option>
+                    @foreach (var o in BookingStatusHelper.TicketOptionsFor(restricted, Model.TicketStatus?.ToString()))
+                    {
+                        <option value="@o.Value">@o.Label</option>
+                    }
                 </select>
             </div>
             <div class="form-field">
@@ -275,7 +377,8 @@
             </div>
             <div class="form-field">
                 <label asp-for="TotalAmount">Total</label>
-                <input asp-for="TotalAmount" />
+                <input asp-for="TotalAmount" class="ref-readonly" readonly tabindex="-1" />
+                <small class="field-hint">Ticket Cost + MCO</small>
             </div>
             <div class="form-field">
                 <label asp-for="SplitCharges">Split Charges</label>
@@ -284,7 +387,7 @@
                     <option value="yes">Yes</option>
                 </select>
             </div>
-            <div class="form-field">
+            @* <div class="form-field">
                 <label asp-for="McoSupplier">MCO Supplier &amp; Mail From</label>
                 <select asp-for="McoSupplier">
                     <option value="">- Select -</option>
@@ -292,13 +395,39 @@
                     <option value="2">Airline</option>
                     <option value="3">Third Party</option>
                 </select>
+            </div> *@
+
+
+            <div class="form-field">
+                <label asp-for="McoSupplier">MCO Supplier &amp; Mail From</label>
+                <select asp-for="McoSupplier">
+                    <option value="">- Select -</option>
+                    @foreach (var s in Model.McoSuppliers.Where(s => s.IsActive))
+                    {
+                        <option value="@s.Id">@s.Name - @s.FromEmail</option>
+                    }
+
+                    @* An old booking linked to an inactive supplier keeps its value instead of losing it *@
+                    @{
+                        var current = Model.McoSuppliers.FirstOrDefault(s => s.Id == Model.McoSupplier);
+                    }
+                    @if (current is { IsActive: false })
+                    {
+                        <option value="@current.Id">@current.Name - @current.FromEmail (In-Active)</option>
+                    }
+                    else if (!string.IsNullOrEmpty(Model.McoSupplier) && current is null)
+                    {
+                        <option value="@Model.McoSupplier">@Model.McoSupplier (Not found)</option>
+                    }
+                </select>
             </div>
             <div class="form-field">
                 <label asp-for="McoStatus">MCO Status</label>
                 <select asp-for="McoStatus">
-                    <option value="0">Pending</option>
-                    <option value="1">Completed</option>
-                    <option value="8">In Progress</option>
+                    @foreach (var o in BookingStatusHelper.McoOptionsFor(restricted, Model.McoStatus?.ToString()))
+                    {
+                        <option value="@o.Value">@o.Label</option>
+                    }
                 </select>
             </div>
             <div class="form-field">
@@ -307,7 +436,8 @@
             </div>
             <div class="form-field">
                 <label asp-for="NetMco">Net MCO</label>
-                <input asp-for="NetMco" />
+                <input asp-for="NetMco" class="ref-readonly" readonly tabindex="-1" />
+                <small class="field-hint">MCO − @BookingAmountCalculator.McoDeductionPercent%</small>
             </div>
             <div class="form-field">
                 <label asp-for="Currency">Currency</label>
@@ -337,6 +467,57 @@
             </div>
         </div>
     </section>
+            @if (Model.BookId != null)
+        {
+        <section class="form-section">
+            <header class="form-section-header">Upload Images / Documents</header>
+            <div class="section-body">
+                @if (Model.Attachments.Count == 0)
+                {
+                    <p class="section-empty">No files uploaded yet.</p>
+                }
+                else
+                {
+                    <div class="attachment-gallery">
+                        @foreach (var file in Model.Attachments)
+                        {
+                            <div class="attachment-item">
+                                @if (file.IsImage)
+                                {
+                                    <a class="attachment-thumb" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                        <img src="@($"{uploadsBase}{file.FileName}")"
+                                             alt="@file.DisplayName"
+                                             onerror="this.closest('.attachment-thumb').classList.add('broken-image')" />
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a class="attachment-file" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                        <span class="file-icon">📄</span>
+                                    </a>
+                                }
+                                <a class="attachment-name" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                    @(file.DisplayName ?? file.FileName)
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="upload-inline-form">
+                    <div class="form-field">
+                        <label>Upload new image or document</label>
+                        <input type="file" name="files" multiple form="attachment-upload-form"
+                               accept="image/*,.pdf,.png,.jpg,.jpeg,.gif,.webp" />
+                    </div>
+                    <button type="submit" class="btn primary" form="attachment-upload-form">Upload</button>
+                </div>
+            </div>
+        </section>
+        }
+
+   
+
 
     <section class="form-section">
         <header class="form-section-header">Comments</header>
@@ -351,7 +532,14 @@
         <a class="btn" asp-action="Index">Cancel</a>
     </div>
 </form>
-
+@if (Model.BookId != null)
+{
+    <form id="attachment-upload-form" method="post" asp-action="UploadAttachment" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="@Model.BookId" />
+        <input type="hidden" name="returnTo" value="details" />
+    </form>
+}
 <template id="passenger-template">
     <div class="passenger-block">
         <div class="passenger-block-header">
@@ -383,23 +571,32 @@
             <div class="form-field">
                 <label>Date of Birth</label>
                 <div class="dob-row">
-                    <select data-field="DobDay"><option value="">Day</option>@foreach (var d in days) { <option value="@d">@d</option> }</select>
-                    <select data-field="DobMonth"><option value="">Month</option>@foreach (var m in months) { <option value="@m">@m</option> }</select>
-                    <select data-field="DobYear"><option value="">Year</option>@foreach (var y in years) { <option value="@y">@y</option> }</select>
-                </div>
-            </div>
-            <div class="form-field">
-                <label>Ticket No.</label>
-                <input data-field="TicketNo" />
-            </div>
-        </div>
+                    <select data-field="DobDay"><option value="">Day</option>@foreach (var d in days) {
+                        <option value="@d">@d</option>
+                    }
+                </select>
+                <select data-field="DobMonth"><option value="">Month</option>@foreach (var m in months) {
+                    <option value="@m">@m</option>
+                }
+            </select>
+            <select data-field="DobYear"><option value="">Year</option>@foreach (var y in years) {
+                <option value="@y">@y</option>
+            }
+        </select>
     </div>
+</div>
+<div class="form-field">
+    <label>Ticket No.</label>
+    <input data-field="TicketNo" />
+</div>
+</div>
+</div>
 </template>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        (function () {
+        (function() {
             const list = document.getElementById('passenger-list');
             const template = document.getElementById('passenger-template');
             const addBtn = document.getElementById('add-passenger');
@@ -423,18 +620,239 @@
                 });
             }
 
-            addBtn.addEventListener('click', function () {
+            addBtn.addEventListener('click', function() {
                 const clone = template.content.cloneNode(true);
                 list.appendChild(clone);
                 reindexPassengers();
             });
 
-            list.addEventListener('click', function (e) {
+            list.addEventListener('click', function(e) {
                 if (e.target.classList.contains('remove-passenger')) {
                     e.target.closest('.passenger-block').remove();
                     reindexPassengers();
                 }
             });
+        })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+        (function() {
+            const source = document.getElementById('FlightPnr');
+            const holder = document.getElementById('pnr-editor');
+            const status = document.getElementById('pnr-status');
+            const form = source ? source.closest('form') : null;
+            if (!source || !holder || !form) return;
+
+            // If the CDN fails, fall back to the plain textarea
+            if (typeof Quill === 'undefined') {
+                source.classList.remove('pnr-source');
+                holder.remove();
+                return;
+            }
+
+            // flight_info is a MySQL TEXT column: max 65,535 bytes. Keep a small margin.
+            const MAX_BYTES = 65000;
+            const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+            const uploadUrl = '@Url.Action("UploadEditorImage")';
+            const tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+            let pendingUploads = 0;
+            let userChanged = false;
+            const inFlight = new Set();
+
+            function byteLength(text) {
+                return new TextEncoder().encode(text).length;
+            }
+
+            function setStatus(message, isError) {
+                status.textContent = message || '';
+                status.classList.toggle('is-error', !!isError);
+            }
+
+            function editorHtml() {
+                const hasText = quill.getText().trim().length > 0;
+                const hasImage = !!quill.root.querySelector('img');
+                return hasText || hasImage ? quill.root.innerHTML : '';
+            }
+
+            function sync() {
+                if (!userChanged) return;   // untouched old content is posted back exactly as loaded
+                source.value = editorHtml();
+                const size = byteLength(source.value);
+                if (size > MAX_BYTES) {
+                    setStatus('Content is too large (' + Math.round(size / 1024) + ' KB of max 63 KB). Remove some text or images.', true);
+                } else if (pendingUploads === 0) {
+                    setStatus('');
+                }
+            }
+
+            async function uploadFile(file) {
+                if (!file.type || !file.type.startsWith('image/')) throw new Error('Only images are allowed.');
+                if (file.size > MAX_IMAGE_SIZE) throw new Error('Image must be under 5 MB.');
+
+                const fd = new FormData();
+                fd.append('file', file, file.name || ('paste.' + (file.type.split('/')[1] || 'png')));
+                if (tokenInput) fd.append('__RequestVerificationToken', tokenInput.value);
+
+                const res = await fetch(uploadUrl, { method: 'POST', body: fd });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.url) throw new Error(data.error || 'Upload failed');
+                return data.url;
+            }
+
+            async function uploadAndInsert(file, index) {
+                pendingUploads++;
+                setStatus('Uploading image...');
+                try {
+                    const url = await uploadFile(file);
+                    userChanged = true;
+                    quill.insertEmbed(index, 'image', url, 'user');
+                    quill.setSelection(index + 1, 0, 'silent');
+                } catch (err) {
+                    setStatus('Image upload failed: ' + err.message, true);
+                } finally {
+                    pendingUploads--;
+                    if (pendingUploads === 0 && !status.classList.contains('is-error')) setStatus('');
+                    sync();
+                }
+            }
+
+            // Images pasted as HTML (e.g. copied from a web page / email) arrive as base64.
+            // Upload them and replace the base64 with a short URL.
+            async function replaceBase64Images() {
+                const images = Array.from(quill.root.querySelectorAll('img[src^="data:"]'));
+                for (const img of images) {
+                    const dataUrl = img.getAttribute('src');
+                    if (inFlight.has(dataUrl)) continue;
+                    inFlight.add(dataUrl);
+                    pendingUploads++;
+                    setStatus('Uploading image...');
+                    try {
+                        const blob = await (await fetch(dataUrl)).blob();
+                        const url = await uploadFile(new File([blob], 'paste.' + (blob.type.split('/')[1] || 'png'), { type: blob.type }));
+                        const blot = Quill.find(img);
+                        if (blot) {
+                            const index = quill.getIndex(blot);
+                            quill.deleteText(index, 1, 'silent');
+                            quill.insertEmbed(index, 'image', url, 'user');
+                        }
+                    } catch (err) {
+                        const blot = Quill.find(img);
+                        if (blot) quill.deleteText(quill.getIndex(blot), 1, 'user');
+                        setStatus('Image removed, upload failed: ' + err.message, true);
+                    } finally {
+                        inFlight.delete(dataUrl);
+                        pendingUploads--;
+                        if (pendingUploads === 0 && !status.classList.contains('is-error')) setStatus('');
+                        sync();
+                    }
+                }
+            }
+
+            const quill = new Quill(holder, {
+                theme: 'snow',
+                placeholder: 'Paste PNR data here...',
+                modules: {
+                    toolbar: {
+                        container: [
+                            [{ header: [false, 3, 4] }],
+                            ['bold', 'italic', 'underline'],
+                            [{ color: [] }, { background: [] }],
+                            [{ list: 'ordered' }, { list: 'bullet' }],
+                            ['link', 'image'],
+                            ['clean']
+                        ],
+                        handlers: {
+                            image: function() {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+                                input.onchange = () => {
+                                    const file = input.files[0];
+                                    if (file) uploadAndInsert(file, quill.getSelection(true).index);
+                                };
+                                input.click();
+                            }
+                        }
+                    },
+                    // Screenshots pasted with Ctrl+V or dragged in go to the server, not base64
+                    uploader: {
+                        handler: function(range, files) {
+                            files.forEach((file, i) => uploadAndInsert(file, range.index + i));
+                        }
+                    }
+                }
+            });
+
+            // Load existing value on Edit (old PHP bookings keep their image URLs)
+            const initial = source.value || '';
+            if (/<[a-z][\s\S]*>/i.test(initial)) {
+                quill.clipboard.dangerouslyPasteHTML(initial, 'silent');
+            } else if (initial) {
+                quill.setText(initial, 'silent');
+            }
+
+            quill.on('text-change', function(delta, oldDelta, changeSource) {
+                if (changeSource !== 'user') return;
+                userChanged = true;
+                if (quill.root.querySelector('img[src^="data:"]')) replaceBase64Images();
+                sync();
+            });
+
+            // Final guard: never post something MySQL will reject
+            form.addEventListener('submit', function(e) {
+                sync();
+                let message = null;
+                if (pendingUploads > 0) {
+                    message = 'Please wait, image is still uploading.';
+                } else if (source.value.indexOf('data:image') !== -1) {
+                    message = 'An image could not be uploaded. Remove it and add it again.';
+                } else if (byteLength(source.value) > MAX_BYTES) {
+                    message = 'Flight information is too large. Remove some text or images.';
+                }
+                if (message) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    setStatus(message, true);
+                    holder.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, true);
+        })();
+    </script>
+    <script>
+        (function() {
+            const ticket = document.getElementById('TicketCost');
+            const mco = document.getElementById('McoAmount');
+            const total = document.getElementById('TotalAmount');
+            const net = document.getElementById('NetMco');
+            if (!ticket || !mco || !total || !net) return;
+
+            const RATE = @BookingAmountCalculator.McoDeductionPercent / 100;
+
+            function num(v) {
+                const n = parseFloat(String(v || '').replace(/[^0-9.\-]/g, ''));
+                return isNaN(n) ? 0 : n;
+            }
+            function sumList(v) {
+                return String(v || '').split(',').reduce((s, p) => s + num(p), 0);
+            }
+            function round2(n) {
+                return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
+            }
+
+            function recalc() {
+                if (!ticket.value.trim() && !mco.value.trim()) {
+                    total.value = '';
+                    net.value = '';
+                    return;
+                }
+                const t = sumList(ticket.value);
+                const m = num(mco.value);
+                net.value = round2(m - m * RATE);
+                total.value = round2(t + m);
+            }
+
+            ticket.addEventListener('input', recalc);
+            mco.addEventListener('input', recalc);
         })();
     </script>
 }

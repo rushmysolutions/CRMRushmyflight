@@ -1,0 +1,98 @@
+﻿@model McoSupplierFormViewModel
+@{
+    ViewData["Title"] = "Edit MCO Supplier";
+    ViewData["ActiveNav"] = "mco-supplier";
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <a asp-action="McoSupplierManagement">MCO Supplier Management</a>
+    <span>/</span>
+    <span>Edit MCO Supplier</span>
+</nav>
+
+<header class="page-header">
+    <h2>MCO Supplier</h2>
+    <p>Editing <strong>@Model.Name</strong></p>
+</header>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert validation-summary" asp-validation-summary="ModelOnly"></div>
+}
+
+<form method="post" asp-action="McoSupplierForm" asp-route-id="@Model.Id" class="booking-form">
+    <input type="hidden" asp-for="HasSmtpPass" />
+
+    <section class="form-section">
+        <header class="form-section-header">Supplier Details</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="Name">Company Name (Supplier) <span class="text-danger">*</span></label>
+                <input asp-for="Name" maxlength="100" />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="TicketCharge">Ticket Charge Name <span class="text-danger">*</span></label>
+                <input asp-for="TicketCharge" maxlength="100" />
+                <small class="field-hint">Name shown on the customer's card statement</small>
+                <span asp-validation-for="TicketCharge" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="TollFree">TFN <span class="text-danger">*</span></label>
+                <input asp-for="TollFree" maxlength="20" placeholder="+1-888-000-0000" />
+                <span asp-validation-for="TollFree" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="IsActive">Status <span class="text-danger">*</span></label>
+                <select asp-for="IsActive">
+                    <option value="true">Active</option>
+                    <option value="false">In-Active</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Email Settings</header>
+        <div class="form-grid">
+            <div class="form-field span-2">
+                <label asp-for="Email">Email Address <span class="text-danger">*</span></label>
+                <input asp-for="Email" type="email" maxlength="50" />
+                <small class="field-hint">You'll receive the acknowledgement (Avk) emails here</small>
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="FromEmail">From Email (SMTP Username) <span class="text-danger">*</span></label>
+                <input asp-for="FromEmail" type="email" maxlength="50" autocomplete="off" />
+                <span asp-validation-for="FromEmail" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="SmtpPass">From Email Password (SMTP Pass) <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <input asp-for="SmtpPass" type="password" value="@Model.SmtpPass"
+                           class="form-control" maxlength="50" autocomplete="new-password" />
+                    <button type="button" class="btn btn-outline-secondary" id="togglePass" title="Show / Hide">👁</button>
+                </div>
+                <small class="field-hint">Click 👁 to view the saved password</small>
+                <span asp-validation-for="SmtpPass" class="text-danger small"></span>
+            </div>
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button type="submit" class="btn primary">Update</button>
+        <a class="btn" asp-action="McoSupplierManagement">Back to List</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('togglePass').addEventListener('click', () => {
+            const i = document.getElementById('SmtpPass');
+            i.type = i.type === 'password' ? 'text' : 'password';
+        });
+    </script>
+}

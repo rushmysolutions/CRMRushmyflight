@@ -11,6 +11,8 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbContext(op
     public DbSet<BookingType> BookingTypes => Set<BookingType>();
     public DbSet<BookComment> Comments => Set<BookComment>();
     public DbSet<BookAttachment> Attachments => Set<BookAttachment>();
+    public DbSet<Tfn> Tfns => Set<Tfn>();
+    public DbSet<McoSupplier> McoSuppliers => Set<McoSupplier>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -108,6 +110,21 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbContext(op
             entity.Property(e => e.UserType).HasColumnName("user_type");
             entity.Property(e => e.Username).HasColumnName("username");
             entity.Property(e => e.LastLogin).HasColumnName("user_last_login");
+            entity.Property(e => e.Phone).HasColumnName("user_phone");
+            entity.Property(e => e.CopyPass).HasColumnName("copy_pass");
+            entity.Property(e => e.Dob).HasColumnName("user_dob");
+            entity.Property(e => e.Sex).HasColumnName("user_sex");
+            entity.Property(e => e.Address).HasColumnName("user_address");
+            entity.Property(e => e.City).HasColumnName("user_city");
+            entity.Property(e => e.State).HasColumnName("user_state");
+            entity.Property(e => e.ZipCode).HasColumnName("user_zipcode");
+            entity.Property(e => e.Country).HasColumnName("user_country");
+            entity.Property(e => e.CreatedDate).HasColumnName("user_date");
+            entity.Property(e => e.DialerId).HasColumnName("dialerid");
+            entity.Property(e => e.AllowedIps).HasColumnName("allowedips");
+            entity.Property(e => e.TollFreeNo).HasColumnName("user_tollfreeno");
+            entity.Property(e => e.DirectLine).HasColumnName("user_directline");
+            entity.Property(e => e.Extn).HasColumnName("user_extn");
         });
 
         modelBuilder.Entity<BookingType>(entity =>
@@ -153,6 +170,42 @@ public class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbContext(op
                 .WithMany(b => b.Attachments)
                 .HasForeignKey(e => e.BookingId)
                 .HasPrincipalKey(b => b.BookId);
+        });
+
+        modelBuilder.Entity<Tfn>(entity =>
+        {
+            entity.ToTable("tbl_tfn");
+            entity.HasKey(e => e.TfnId);
+            entity.Property(e => e.TfnId).HasColumnName("tfn_id").ValueGeneratedOnAdd();
+            entity.Property(e => e.TfnNumber).HasColumnName("tfn_name").HasMaxLength(10);
+            entity.Property(e => e.DidNumber).HasColumnName("didnumber").HasMaxLength(100);
+            entity.Property(e => e.Type).HasColumnName("buffertype").HasMaxLength(1);
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("tfn_status")
+                .HasMaxLength(5)
+                .HasConversion(v => v ? "1" : "0", v => v == "1");
+        });
+
+        modelBuilder.Entity<McoSupplier>(entity =>
+        {
+            entity.ToTable("tbl_mco_supplier");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Name).HasColumnName("mcosuppliername").HasMaxLength(200);
+            entity.Property(e => e.TicketCharge).HasColumnName("tktcharge").HasMaxLength(100);
+            entity.Property(e => e.TollFree).HasColumnName("tollfree").HasMaxLength(100);
+            entity.Property(e => e.Email).HasColumnName("emailid").HasMaxLength(100);
+            entity.Property(e => e.FromEmail).HasColumnName("fromemail").HasMaxLength(100);
+            entity.Property(e => e.FromSmtpPass).HasColumnName("fromsmtppass").HasMaxLength(200);
+            entity.Property(e => e.Notes).HasColumnName("notes").HasMaxLength(200);
+            entity.Property(e => e.SortOrder).HasColumnName("mcosupplierorder");
+
+            // DB stores '1' / '0' as varchar
+            entity.Property(e => e.IsActive)
+                .HasColumnName("mcosupplierstatus")
+                .HasMaxLength(2)
+                .HasConversion(v => v ? "1" : "0", v => v == "1");
         });
     }
 }

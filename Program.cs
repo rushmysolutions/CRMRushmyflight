@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using RushMyBookings.Crm.Data;
 using RushMyBookings.Crm.Middleware;
@@ -51,7 +52,11 @@ builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IIpAccessService, IpAccessService>();
 builder.Services.AddHostedService<DatabaseWarmupHostedService>();
 builder.Services.AddHostedService<AttendanceAutoLockHostedService>();
-
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownNetworks.Clear(); o.KnownProxies.Clear();
+});
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -67,7 +72,9 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseForwardedHeaders();
 app.UseAuthentication();
+
 app.UseAuthorization();
 // After auth so System Administrator can skip device + IP rules
 app.UseDeviceRestriction();

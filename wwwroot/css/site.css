@@ -3335,3 +3335,208 @@ a:focus-visible,
         gap: 10px 14px;
     }
 }
+
+/* -- CRM Inner -- */
+.booking-table {
+    .badge {min-width: 100px;}
+}
+.table-common-crm {
+    th {
+        padding: 10px 13px !important;
+    }
+
+    td {
+        padding: 8px 13px;
+    }
+}
+.flex-items-wrap {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
+
+    a:hover {
+        text-decoration: none !important;
+    }
+}
+
+.form-section-header {
+    & + .form-grid {
+        padding-top: 18px !important;
+    }
+
+    & + #passenger-list > .passenger-block:first-child {
+        padding-top: 0;
+    }
+}
+.group-btns {
+    padding: 12px 0;
+    display: flex;
+    column-gap: 10px;
+    a {font-size: 14px;}
+}
+
+.pagination-common-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    gap: 1rem;
+}
+
+    .pagination-common-wrap > div:first-child {
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .pagination-common-wrap .pagination {
+        margin: 0;
+        gap: 4px;
+    }
+
+    .pagination-common-wrap .page-item {
+        margin: 0;
+        list-style: none;
+    }
+
+    .pagination-common-wrap .page-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        background: #fff;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+        .pagination-common-wrap .page-link:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #193054;
+        }
+
+    .pagination-common-wrap .page-item.active .page-link {
+        background: #193054;
+        border-color: #193054;
+        color: #fff;
+        box-shadow: none;
+    }
+
+    .pagination-common-wrap .page-item.disabled .page-link {
+        background: #f8fafc;
+        color: #94a3b8;
+        border-color: #e2e8f0;
+        box-shadow: none;
+    }
+
+.table-filter-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 16px;
+    gap: 16px;
+}
+
+.table-filter-left,
+.table-filter-right {
+    display: flex;
+    align-items: center;
+}
+
+.table-page-size,
+.table-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.table-search-wrap {
+    justify-content: flex-end;
+}
+
+.table-filter-label {
+    color: #475569;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 34px;
+    white-space: nowrap;
+}
+
+.table-page-size-select {
+    width: 72px;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+    .table-page-size-select:focus {
+        border-color: #94a3b8;
+        box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.05);
+    }
+
+.table-search-input {
+    width: 220px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    outline: none;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+    .table-search-input:focus {
+        border-color: #94a3b8;
+        box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .table-search-input::placeholder {
+        color: #94a3b8;
+    }
+
+/* Responsive */
+@media (max-width: 767px) {
+    .table-filter-wrap {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .table-filter-left,
+    .table-filter-right {
+        width: 100%;
+    }
+
+    .table-search-wrap {
+        justify-content: flex-start;
+    }
+
+    .table-search-input {
+        width: 220px;
+        max-width: 100%;
+    }
+}
+
+.grid-col-4 {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}

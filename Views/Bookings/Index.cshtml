@@ -5,7 +5,34 @@
     var result = Model.Bookings;
     var f = Model.Filter;
 }
+<style>
+    .action-icons .inline-action {
+        display: inline-flex;
+        margin: 0;
+        padding: 0;
+    }
 
+        .action-icons .inline-action button {
+            font: inherit;
+            cursor: pointer;
+        }
+
+    .icon-btn.email {
+        color: #0b5ed7;
+    }
+
+    .icon-btn.clone {
+        color: #6f42c1;
+    }
+
+    .icon-btn.delete {
+        color: #c62828;
+    }
+
+        .icon-btn.delete:hover {
+            background: #fdecea;
+        }
+</style>
 <nav class="breadcrumb">
     <a asp-controller="Home" asp-action="Index">Home</a>
     <span>/</span>
@@ -92,8 +119,8 @@
         </div>
     </form>
 
-    <div class="table-wrap booking-table-wrap">
-        <table class="booking-table">
+    <div class="table-wrap booking-table-wrap wrap-common-crm" style="padding: 0;">
+        <table class="booking-table table-common-crm">
             <thead>
                 <tr>
                     <th>#</th>
@@ -125,8 +152,7 @@
                         </td>
                         <td>@(b.CustomerName ?? "-")</td>
                         <td>
-                            @FormatHelper.Money(b.McoAmount, b.Currency)
-                            <br /><small>@FormatHelper.Money(b.NetMco, b.Currency)</small>
+                            @FormatHelper.Money(b.McoAmount, b.Currency) / <small>@FormatHelper.Money(b.NetMco, b.Currency)</small>
                         </td>
                         <td>
                             <span class="badge @BookingStatusHelper.AckStatusClass(b.CustomerAckStatus)">
@@ -137,10 +163,10 @@
                         <td>@(b.CreatedDate ?? "-")</td>
                         <td>@(b.AssignedUserName ?? "-")</td>
                         <td>
-                            <span class="badge @BookingStatusHelper.TicketStatusClass(b.TicketStatus)">
+                            <span class="badge @BookingStatusHelper.TicketStatusClass(b.TicketStatus)" style="margin-bottom:6px;">
                                 @BookingStatusHelper.TicketStatusLabel(b.TicketStatus)
                             </span>
-                            <br />
+                            
                             <span class="badge @BookingStatusHelper.McoStatusClass(b.McoStatus)">
                                 @BookingStatusHelper.McoStatusLabel(b.McoStatus)
                             </span>
@@ -155,25 +181,53 @@
                                 @BookingStatusHelper.FollowUpLabel(b.FollowUpBy, b.FollowUpDate)
                             </span>
                         </td>
+                       
+
                         <td class="action-icons">
-                            <a class="icon-btn view" asp-action="Details" asp-route-id="@b.BookId" title="View">👁</a>
-                            <a class="icon-btn edit" asp-action="Edit" asp-route-id="@b.BookId" title="Edit">✎</a>
-                            <button type="button"
-                                    class="icon-btn upload"
-                                    title="Upload"
-                                    data-book-id="@b.BookId"
-                                    data-book-ref="@(b.ReferenceNo ?? b.BookId.ToString())">
-                                ☁↑
-                            </button>
-                            @if (b.AttachmentCount > 0)
-                            {
-                                <span class="attach-count" title="@b.AttachmentCount file(s)">@b.AttachmentCount</span>
-                            }
-                            <a class="icon-btn comment"
-                               asp-action="Comments"
-                               asp-route-id="@b.BookId"
-                               asp-route-page="@Model.Page"
-                               title="Comments">✉</a>
+                            <div class="flex-items-wrap">
+                                <a class="icon-btn view" asp-action="Details" asp-route-id="@b.BookId" title="View">👁</a>
+                                <a class="icon-btn edit" asp-action="Edit" asp-route-id="@b.BookId" title="Edit">✎</a>
+                                <button type="button"
+                                        class="icon-btn upload"
+                                        title="Upload"
+                                        data-book-id="@b.BookId"
+                                        data-book-ref="@(b.ReferenceNo ?? b.BookId.ToString())">
+                                    ☁↑
+                                </button>
+                                @if (b.AttachmentCount > 0)
+                                {
+                                    <span class="attach-count" title="@b.AttachmentCount file(s)">@b.AttachmentCount</span>
+                                }
+                                <a class="icon-btn comment"
+                                   asp-action="Comments"
+                                   asp-route-id="@b.BookId"
+                                   asp-route-page="@Model.Page"
+                                   title="Comments">💬</a>
+
+                                @* New: Email (opens the email preview page with the "Send Email" button) *@
+                                <a class="icon-btn email"
+                                   asp-action="Email"
+                                   asp-route-id="@b.BookId"
+                                   title="Send Email">✉</a>
+                                <a class="icon-btn eticket"
+                                   asp-action="ETicket"
+                                   asp-route-id="@b.BookId"
+                                   title="E-Ticket">🎫</a>
+                                @* New: Clone (POST, because it creates a new booking) *@
+                                <form method="post" asp-action="Clone" asp-route-id="@b.BookId" class="inline-action"
+                                      onsubmit="return confirm('Clone booking @(b.ReferenceNo ?? b.BookId.ToString())?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="icon-btn clone" title="Clone">⧉</button>
+                                </form>
+
+                                @* New: Delete (POST + confirm, never a plain link) *@
+                                <form method="post" asp-action="Delete" asp-route-id="@b.BookId" class="inline-action"
+                                      onsubmit="return confirm('Delete booking @(b.ReferenceNo ?? b.BookId.ToString())? This cannot be undone.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="page" value="@Model.Page" />
+                                    <button type="submit" class="icon-btn delete" title="Delete">🗑</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 }

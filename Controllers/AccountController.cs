@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +9,9 @@ using RushMyBookings.Crm.Helpers;
 using RushMyBookings.Crm.Services;
 using RushMyBookings.Crm.ViewModels;
 using RushMyBookings.Crm.ViewModels.Attendance;
+using System.Net;
+using System.Security.Claims;
+using static RushMyBookings.Crm.Models.UserAccount;
 
 namespace RushMyBookings.Crm.Controllers;
 
@@ -63,17 +65,23 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
     {
         try
         {
-            var user = await dataService.ValidateUserAsync(model.Login, model.Password);
-            if (user is null)
+            var clientIp = GetClientIp();
+            var result = await dataService.ValidateUserAsync(model.Login, model.Password, clientIp);
+
+            switch (result.Status)
             {
-                ModelState.AddModelError(string.Empty, "Invalid CRM username/email or password.");
-                return View(model);
+                case LoginStatus.InvalidCredentials:
+                    ModelState.AddModelError(string.Empty, "Invalid CRM username/email or password.");
+                    return View(model);
+
+                case LoginStatus.IpNotAllowed:
+                    ViewData["IpWarning"] =
+                        $"Your IP address ({clientIp ?? "unknown"}) is not allowed to access the CRM. " +
+                        "Please contact your administrator to whitelist this IP.";
+                    return View(model);
             }
 
-            // Sign in immediately — do not preload dashboard stats here.
-            // Home is a welcome page only; full-table COUNT/SUM/GROUP BY on bookings
-            // made login feel random-slow whenever the 3‑minute cache was cold.
-            await SignInCrmUserAsync(user, model.RememberMe);
+            await SignInCrmUserAsync(result.User!, model.RememberMe);
             return RedirectToLocal(model.ReturnUrl, preferAttendance: false);
         }
         catch (DbUpdateException ex) when (ex.InnerException is MySqlException mysql)
@@ -90,6 +98,14 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
         }
     }
 
+    private string? GetClientIp()
+    {
+        var ip = HttpContext.Connection.RemoteIpAddress;
+        if (ip is null) return null;
+        if (IPAddress.IsLoopback(ip)) return "49.204.159.2";       // ::1 on localhost
+        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+        return ip.ToString();
+    }
     private async Task<IActionResult> LoginInternalAsync(LoginViewModel model)
     {
         try
@@ -329,4 +345,7 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
 
         return RedirectToAction("Index", "Home");
     }
+
+
+
 }

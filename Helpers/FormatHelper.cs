@@ -46,4 +46,19 @@ public static class FormatHelper
         var rndIndex = fileName.IndexOf("rnd", StringComparison.OrdinalIgnoreCase);
         return rndIndex >= 0 ? fileName[(rndIndex + 3)..] : fileName;
     }
+
+
+    public static class SensitiveMask
+    {
+        public const string Hidden = "***************";
+
+        public static string CardLastFour(string? card)
+        {
+            var digits = new string((card ?? "").Where(char.IsDigit).ToArray());
+            return digits.Length >= 4 ? $"**** **** **** {digits[^4..]}" : "**** **** **** ****";
+        }
+
+        public static string Value(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? "-" : Hidden;
+    }
 }
