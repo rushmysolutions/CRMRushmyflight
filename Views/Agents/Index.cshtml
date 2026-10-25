@@ -1,36 +1,149 @@
-@model AgentsIndexViewModel
+@model AgentListViewModel
 @{
-    ViewData["Title"] = "Agents";
+    ViewData["Title"] = "Agent List";
     ViewData["ActiveNav"] = "agents";
+    var start = (Model.Page - 1) * Model.PageSize;
 }
 
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <span>Agent List</span>
+</nav>
+
 <header class="page-header">
-    <h2>Agents</h2>
-    <p>Active users from tbl_users</p>
+    <h2>Agent List</h2>
 </header>
 
-<div class="table-wrap">
-    <table>
-        <thead>
-            <tr>
-                <th>Username</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Bookings</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var a in Model.Agents)
+@if (TempData["Success"] is string msg)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @msg
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Filter -->
+<section class="form-section mb-3">
+    <header class="form-section-header">Search By</header>
+    <div class="p-3">
+        <form asp-action="Index" method="get">
+            <div class="form-grid" style="padding:15px 16px 0">
+                <div class="form-field">
+                    <label>Agent Name</label>
+                    <input name="name" value="@Model.Name" class="form-control" placeholder="Agent Name" maxlength="30" />
+                </div>
+                <div class="form-field">
+                    <label>Phone No.</label>
+                    <input name="phone" value="@Model.Phone" class="form-control" placeholder="Phone No" maxlength="15" />
+                </div>
+                <div class="form-field">
+                    <label>Email ID</label>
+                    <input name="email" value="@Model.Email" class="form-control" placeholder="Email Id" maxlength="50" />
+                </div>
+                
+            </div>
+            <div class="col-lg-3 ms-auto d-flex gap-2 group-btns" style="padding:12px 16px 0">
+                <button class="btn btn-primary w-100">🔍 Search</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="form-section">
+    <header class="form-section-header">Agent List</header>
+    <div class="p-3">
+
+        <div class="d-flex gap-2 mb-3 group-btns">
+            <a asp-action="AgentForm" class="btn btn-info text-white">➕ Add New Agent</a>
+            <a asp-action="UpdateAllIps" class="btn btn-primary">Update IP for All Users</a>
+        </div>
+
+        <div class="table-wrap table-responsive">
+            <table class="table table-bordered table-striped table-hover align-middle table-common-crm">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Username<br />Dialer ID</th>
+                        <th>Password</th>
+                        <th>Name</th>
+                        <th>Phone No.</th>
+                        <th>Email Address</th>
+                        <th>User Type</th>
+                        <th>Created Date</th>
+                        <th>Allowed IP</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Agents.Count; i++)
+                    {
+                        var a = Model.Agents[i];
+                        <tr>
+                            <td>@(start + i + 1)</td>
+                            <td>@a.Username<br /><small class="text-muted">@a.DialerId</small></td>
+                            <td>
+                                @a.Password<br />
+                                <a asp-action="ChangePassword" asp-route-id="@a.UserId" class="small">Change Pass</a>
+                            </td>
+                            <td>@a.Name</td>
+                            <td>@a.Phone</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(a.Email))
+                                {
+                                    <a href="mailto:@a.Email">@a.Email</a>
+                                }
+                            </td>
+                            <td>@a.UserType</td>
+                            <td>@a.CreatedDate</td>
+                            <td><a asp-action="ManageIp" asp-route-id="@a.UserId">Manage IP</a></td>
+                            <td class="d-flex gap-1">
+                                <div class="flex-items-wrap">
+                                    <a asp-action="Details" asp-route-id="@a.UserId"
+                                       class="btn btn-sm btn-info text-white" title="View">👁</a>
+
+                                    <a asp-action="AgentForm" asp-route-id="@a.UserId"
+                                       class="btn btn-sm btn-info text-white" title="Edit">✏️</a>
+
+                                    <form asp-action="ToggleStatus" asp-route-id="@a.UserId"
+                                          asp-route-name="@Model.Name" asp-route-phone="@Model.Phone"
+                                          asp-route-email="@Model.Email" asp-route-page="@Model.Page" method="post"
+                                          onsubmit="return confirm('@a.Username ko @(a.IsActive ? "In-Active" : "Active") karna hai?');">
+                                        <button type="submit" title="@(a.IsActive ? "Active" : "In-Active")"
+                                                class="btn btn-sm @(a.IsActive ? "btn-success" : "btn-danger")">
+                                            ⚑
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+
+                    @if (Model.Agents.Count == 0)
+                    {
+                        <tr><td colspan="10" class="text-center text-muted">Koi agent nahi mila</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3 pagination-common-wrap">
+            <div>Showing @Model.Agents.Count of @Model.Total.</div>
+
+            @if (Model.TotalPages > 1)
             {
-                <tr>
-                    <td>@(a.Username ?? "-")</td>
-                    <td>@string.Join(" ", new[] { a.FirstName, a.LastName }.Where(s => !string.IsNullOrWhiteSpace(s)))</td>
-                    <td>@(a.Email ?? "-")</td>
-                    <td>@(a.UserType ?? "-")</td>
-                    <td>@a.BookingCount</td>
-                </tr>
+                <ul class="pagination pagination-sm m-0">
+                    @for (var p = 1; p <= Model.TotalPages; p++)
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            <a class="page-link" asp-action="Index" asp-route-page="@p"
+                               asp-route-name="@Model.Name" asp-route-phone="@Model.Phone"
+                               asp-route-email="@Model.Email">@p</a>
+                        </li>
+                    }
+                </ul>
             }
-        </tbody>
-    </table>
-</div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,549 @@
+﻿@model BookingDetail
+@{
+    Layout = null;   // public customer page, no CRM menu
+
+    var token = ViewData["AckToken"] as string ?? "";
+    var isAcknowledged = Convert.ToString(Model.CustomerAckStatus) == "1";
+
+    var companyName = string.IsNullOrWhiteSpace(Model.McoSupplierName) ? "RushMyFlight" : Model.McoSupplierName.Trim();
+    var supportPhone = string.IsNullOrWhiteSpace(Model.McoSupplierPhone) ? "+1-888-889-2208" : Model.McoSupplierPhone.Trim();
+    var phoneLink = new string(supportPhone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+    var supportEmail = string.IsNullOrWhiteSpace(Model.McoSupplierSupportEmail) ? "support@rushmyflight.com" : Model.McoSupplierSupportEmail.Trim();
+    var customerName = string.IsNullOrWhiteSpace(Model.CardHolderName) ? Model.CustomerName : Model.CardHolderName;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>@(isAcknowledged ? "Thank You" : "Confirming Authorization") - @companyName</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy: #00153a;
+            --orange: #f04e00;
+            --green: #5b8a2f;
+            --check: #6fa832;
+            --red: #b52a00;
+            --text: #222;
+            --muted: #555;
+            --border: #d9d9d9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Roboto, Arial, Helvetica, sans-serif;
+            font-size: 15px;
+            color: var(--text);
+            background: #fff;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* ---------- Top bar ---------- */
+        .topbar {
+            display: flex;
+            justify-content: flex-end;
+            padding: 16px 0 10px;
+        }
+
+        .call {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+            .call svg {
+                width: 42px;
+                height: 42px;
+                flex: 0 0 42px;
+            }
+
+            .call small {
+                display: block;
+                color: var(--muted);
+                font-size: 14px;
+            }
+
+            .call a {
+                color: #9b1010;
+                font-size: 30px;
+                font-weight: 700;
+                text-decoration: none;
+                line-height: 1.1;
+            }
+
+        /* ---------- Heading ---------- */
+        .hero {
+            text-align: center;
+            padding: 40px 0 44px;
+        }
+
+            .hero h1 {
+                color: var(--green);
+                font-size: 46px;
+                font-weight: 700;
+            }
+
+            .hero p {
+                color: #444;
+                font-size: 21px;
+                font-weight: 300;
+                margin-top: 6px;
+            }
+
+        /* ---------- Panel ---------- */
+        .panel {
+            border: 1px solid var(--border);
+            margin-bottom: 80px;
+        }
+
+        .panel-title {
+            background: var(--navy);
+            color: #fff;
+            font-size: 21px;
+            font-weight: 400;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .panel-title svg {
+                width: 26px;
+                height: 26px;
+                flex: 0 0 26px;
+            }
+
+        .panel-body {
+            padding: 18px 20px;
+        }
+
+        /* ---------- Booking status ---------- */
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .status-msg {
+            display: flex;
+            gap: 20px;
+        }
+
+        .check {
+            flex: 0 0 66px;
+            width: 66px;
+            height: 66px;
+            border-radius: 50%;
+            background: var(--check);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .check svg {
+                width: 38px;
+                height: 38px;
+            }
+
+        .status-msg h3 {
+            color: var(--orange);
+            font-size: 21px;
+            font-weight: 700;
+        }
+
+        .status-msg p {
+            font-size: 15px;
+        }
+
+            .status-msg p.small {
+                font-size: 14px;
+                color: var(--muted);
+                margin-top: 4px;
+            }
+
+        .ref-box {
+            border: 1px solid #a3b64a;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+            .ref-box strong {
+                color: var(--orange);
+            }
+
+        /* ---------- Upload ---------- */
+        .upload {
+            background: #fafaf5;
+            padding: 60px 30px 22px;
+        }
+
+            .upload label {
+                font-weight: 500;
+                display: block;
+                margin-bottom: 6px;
+            }
+
+            .upload input[type=file] {
+                font-size: 15px;
+                max-width: 100%;
+            }
+
+            .upload .hint {
+                color: #d01c1c;
+                font-size: 14px;
+                margin: 8px 0 22px;
+            }
+
+        .btn-upload {
+            background: #ececec;
+            border: none;
+            padding: 12px 18px;
+            font-size: 16px;
+            font-family: inherit;
+            letter-spacing: .5px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+            .btn-upload:hover {
+                background: #dedede;
+            }
+
+            .btn-upload:disabled {
+                opacity: .6;
+                cursor: wait;
+            }
+
+        .msg {
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+            .msg.ok {
+                background: #e8f5e9;
+                color: #1b5e20;
+                border: 1px solid #a5d6a7;
+            }
+
+            .msg.err {
+                background: #fdecea;
+                color: #b71c1c;
+                border: 1px solid #f5c6cb;
+            }
+
+        /* ---------- e-Ticket status ---------- */
+        .eticket {
+            background: linear-gradient(#dcedf6, #fff);
+            padding: 26px 44px 8px;
+            font-size: 21px;
+            font-weight: 300;
+        }
+
+            .eticket h4 {
+                font-size: 21px;
+                font-weight: 700;
+                margin-bottom: 34px;
+            }
+
+            .eticket b {
+                font-weight: 700;
+            }
+
+            .eticket .gap {
+                margin-top: 34px;
+            }
+
+            .eticket .notice {
+                color: var(--red);
+                font-weight: 700;
+                margin: 54px 0 24px;
+            }
+
+        .note {
+            border: 1px solid var(--border);
+            margin: 0 20px 14px;
+            padding: 10px 16px;
+            font-weight: 700;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+
+        /* ---------- Support ---------- */
+        .support {
+            font-size: 16px;
+            line-height: 2;
+        }
+
+        /* ---------- Footer ---------- */
+        footer {
+            background: #e9e9e9;
+            color: var(--muted);
+            font-size: 15px;
+            font-weight: 300;
+            padding: 34px 16px 40px;
+            text-align: center;
+        }
+
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin: 18px 0;
+        }
+
+            .badges span {
+                background: #fff;
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                padding: 6px 10px;
+                font-size: 13px;
+                font-weight: 700;
+                color: #1a3a6b;
+            }
+
+        /* ---------- Pending (before confirm) ---------- */
+        .pending {
+            text-align: center;
+            padding: 80px 0;
+        }
+
+            .pending p {
+                font-size: 18px;
+                margin-bottom: 20px;
+            }
+
+        .btn-confirm {
+            background: #8cc63f;
+            color: #fff;
+            border: none;
+            padding: 12px 22px;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: inherit;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        @@media (max-width: 640px) {
+            .topbar {
+                justify-content: center;
+            }
+
+            .call a {
+                font-size: 24px;
+            }
+
+            .hero {
+                padding: 24px 0 28px;
+            }
+
+                .hero h1 {
+                    font-size: 34px;
+                }
+
+                .hero p {
+                    font-size: 17px;
+                }
+
+            .panel-title {
+                font-size: 18px;
+                padding: 10px 14px;
+            }
+
+            .panel-body {
+                padding: 14px;
+            }
+
+            .status-row {
+                flex-direction: column;
+            }
+
+            .status-msg {
+                gap: 14px;
+            }
+
+            .check {
+                flex-basis: 52px;
+                width: 52px;
+                height: 52px;
+            }
+
+            .ref-box {
+                white-space: normal;
+                width: 100%;
+            }
+
+            .upload {
+                padding: 26px 14px 18px;
+            }
+
+            .eticket {
+                padding: 20px 16px 6px;
+                font-size: 17px;
+            }
+
+                .eticket h4 {
+                    font-size: 18px;
+                    margin-bottom: 20px;
+                }
+
+                .eticket .gap {
+                    margin-top: 20px;
+                }
+
+                .eticket .notice {
+                    margin: 30px 0 18px;
+                }
+
+                .eticket span {
+                    word-break: break-word;
+                }
+
+            .note {
+                margin: 0 14px 14px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="topbar">
+            <div class="call">
+                <svg viewBox="0 0 24 24" fill="#a3201d" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1zM15 3a6 6 0 0 1 6 6h-1.6A4.4 4.4 0 0 0 15 4.6zm0 3a3 3 0 0 1 3 3h-1.6A1.4 1.4 0 0 0 15 7.6z" /></svg>
+                <div>
+                    <small>Call Us 24/7 for Lowest Airfares</small>
+                    <a href="tel:@phoneLink">@supportPhone</a>
+                </div>
+            </div>
+        </div>
+
+        @if (!isAcknowledged)
+        {
+            @* Recorded with a POST, so email link scanners that only "open" the link cannot authorize on the customer's behalf *@
+            <div class="pending">
+                <p>Confirming your authorization for booking <strong>@Model.ReferenceNo</strong>...</p>
+                <form id="ack-form" method="post" asp-action="Acknowledge" asp-route-id="@Model.BookId">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="t" value="@token" />
+                    <button type="submit" class="btn-confirm">Yes, I Authorize</button>
+                </form>
+            </div>
+            <script>document.getElementById('ack-form').submit();</script>
+        }
+        else
+        {
+            <div class="hero">
+                <h1>Thank You!</h1>
+                <p>Your Payment Information Has Been Accepted</p>
+            </div>
+
+            <div class="panel">
+                <!-- Booking Status -->
+                <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M3 12 12 3l9 9-9 9z" /><circle cx="12" cy="8" r="1.4" /><path d="m7 12 5 5 5-5" /></svg>
+                    Booking Status
+                </div>
+                <div class="panel-body">
+                    <div class="status-row">
+                        <div class="status-msg">
+                            <div class="check">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7" /></svg>
+                            </div>
+                            <div>
+                                <h3>Your Booking is under process.</h3>
+                                <p>Thank you for Authorizing the Payment for your booking.</p>
+                                <p class="small">You will soon receive an email confirmation for your e-ticket.</p>
+                            </div>
+                        </div>
+                        <div class="ref-box">
+                            <span>Booking Refrence No.:</span> <strong>@Model.ReferenceNo</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload ID proofs -->
+                <div class="upload">
+                    @if (TempData["AckUploadSuccess"] is string upOk)
+                    {
+                        <div class="msg ok">@upOk</div>
+                    }
+                    @if (TempData["AckUploadError"] is string upErr)
+                    {
+                        <div class="msg err">@upErr</div>
+                    }
+                    <form method="post" asp-action="AcknowledgeUpload" asp-route-id="@Model.BookId" enctype="multipart/form-data"
+                          onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='UPLOADING...';">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="t" value="@token" />
+                        <label for="id-proofs">Upload Your ID Proofs *:</label>
+                        <input type="file" id="id-proofs" name="files" multiple required accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+                        <p class="hint">(File extension should be .jpeg, .jpg &amp; .png . You can upload multiple files (Press CTRL &amp; Select files). OR you can upload one by one)</p>
+                        <button type="submit" class="btn-upload">UPLOAD</button>
+                    </form>
+                </div>
+
+                <!-- e-Ticket Status -->
+                <div class="panel-title">
+                    <svg viewBox="0 0 24 24" fill="#fff"><path d="M21 10V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4a2 2 0 0 1 0 4v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 1 0-4z" /></svg>
+                    e-Ticket Status
+                </div>
+                <div class="eticket">
+                    <h4>Payment Information:</h4>
+                    <p><b>Amount:</b> <span>@FormatHelper.Money(Model.TotalAmount, Model.Currency)</span></p>
+                    <p><b>Card Holder:</b> <span>@customerName</span></p>
+                    <p><b>Card:</b> <span>@FormatHelper.CardTypeName(Model.PaymentMethod) @Model.CardNumberMasked</span></p>
+                    <p><b>Email Address:</b> <span>@Model.Email</span></p>
+
+                    <p class="gap"><b>IP Address:</b> <span>@Model.CustomerAckIp</span></p>
+                    <p class="gap"><b>Location:</b> <span>@(string.IsNullOrWhiteSpace(Model.CustomerAckLocation) ? "-" : Model.CustomerAckLocation)</span></p>
+                    <p class="gap"><b>Acknowledge Date:</b> <span>@Model.CustomerAckDate</span></p>
+
+                    <p class="notice">Your e-Ticket will be emailed within 4 hours to your email address, once your credit card verification has been completed.</p>
+                </div>
+                <div class="note">Note: This is not your e-ticket and is not valid for travel.</div>
+
+                <!-- Customer Support -->
+                <div class="panel-title">Customer Support</div>
+                <div class="panel-body support">
+                    <strong>Booking Number: @Model.ReferenceNo</strong><br />
+                    If you have questions about your reservation, please contact us at
+                    <a href="mailto:@supportEmail">@supportEmail</a> and we will respond within 24 hours.
+                </div>
+            </div>
+        }
+    </div>
+
+    <footer>
+        <p>@companyName is a leading travel company</p>
+        <div class="badges">
+            <span>IATAN</span><span>ASTA</span><span>Mastercard</span><span>American Express</span><span>VISA</span><span>Discover</span>
+        </div>
+        <p>&copy; @DateTime.Now.Year, @companyName. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>

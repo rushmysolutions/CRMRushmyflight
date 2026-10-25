@@ -12,11 +12,11 @@
           referrerpolicy="no-referrer" />
 </head>
 <body>
-@{
-    var isInternal = AttendanceAccess.IsInternalPortal(User);
-    var isCrm = !isInternal;
-    var activeNav = ViewData["ActiveNav"]?.ToString() ?? "";
-}
+    @{
+        var isInternal = AttendanceAccess.IsInternalPortal(User);
+        var isCrm = !isInternal;
+        var activeNav = ViewData["ActiveNav"]?.ToString() ?? "";
+    }
     <div class="app" id="app">
         <header class="mobile-topbar">
             <button type="button" class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
@@ -45,19 +45,40 @@
             <nav>
                 @if (isCrm)
                 {
+                    var isAdmin = !CrmAccess.IsRestricted(User);
+
                     <a class="nav-link @(activeNav == "dashboard" ? "active" : "")"
                        asp-controller="Home" asp-action="Index">Dashboard</a>
                     <a class="nav-link @(activeNav == "bookings" ? "active" : "")"
                        asp-controller="Bookings" asp-action="Index">Bookings</a>
                     <a class="nav-link @(activeNav == "bookings-create" ? "active" : "")"
                        asp-controller="Bookings" asp-action="Create">Create Booking</a>
-                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
-                       asp-controller="Agents" asp-action="Index">Agents</a>
-                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+
+                    @if (isAdmin)
+                    {
+                        <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+                           asp-controller="Agents" asp-action="Index">Agents</a>
+                    }
+
+                    <a class="nav-link @(activeNav == "agent-management" ? "active" : "")"
                        asp-controller="Agents" asp-action="AgentManagement">Agent Management</a>
-                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+
+                    @if (isAdmin)
+                    {
+                        <a class="nav-link @(activeNav == "TFN" ? "active" : "")"
+                           asp-controller="Bookings" asp-action="TFNManagement">TFN Management</a>
+                        <a class="nav-link @(activeNav == "mco-supplier" ? "active" : "")"
+                           asp-controller="Bookings" asp-action="McoSupplierManagement">MCO Supplier Management</a>
+                        <a class="nav-link @(activeNav == "booking-report" ? "active" : "")"
+                           asp-controller="Reports" asp-action="Bookings">Booking Report</a>
+                    }
+                    
+                    <a class="nav-link @(activeNav == "latest-comments" ? "active" : "")"
+                       asp-controller="Comments" asp-action="Latest">Latest Comments</a>
+                    
+                    <a class="nav-link @(activeNav == "notifications" ? "active" : "")"
                        asp-controller="Home" asp-action="NotificationManagement">Notification Management</a>
-                    <a class="nav-link @(activeNav == "agents" ? "active" : "")"
+                    <a class="nav-link @(activeNav == "customer-services" ? "active" : "")"
                        asp-controller="Customer" asp-action="CustomerManagement">Customer Services</a>
                 }
 
@@ -141,7 +162,7 @@
         </main>
     </div>
     <script>
-        (function () {
+        (function() {
             var app = document.getElementById('app');
             var toggle = document.getElementById('menuToggle');
             var closeBtn = document.getElementById('sidebarClose');
@@ -156,19 +177,19 @@
                 document.body.classList.toggle('no-scroll', open);
             }
 
-            toggle.addEventListener('click', function () {
+            toggle.addEventListener('click', function() {
                 setOpen(!app.classList.contains('nav-open'));
             });
-            if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); });
-            if (backdrop) backdrop.addEventListener('click', function () { setOpen(false); });
-            document.addEventListener('keydown', function (e) {
+            if (closeBtn) closeBtn.addEventListener('click', function() { setOpen(false); });
+            if (backdrop) backdrop.addEventListener('click', function() { setOpen(false); });
+            document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') setOpen(false);
             });
-            window.addEventListener('resize', function () {
+            window.addEventListener('resize', function() {
                 if (window.matchMedia('(min-width: 901px)').matches) setOpen(false);
             });
-            document.querySelectorAll('#sidebar a.nav-link').forEach(function (link) {
-                link.addEventListener('click', function () { setOpen(false); });
+            document.querySelectorAll('#sidebar a.nav-link').forEach(function(link) {
+                link.addEventListener('click', function() { setOpen(false); });
             });
         })();
     </script>

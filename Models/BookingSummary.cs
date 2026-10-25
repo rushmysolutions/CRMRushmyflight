@@ -93,6 +93,11 @@ public sealed class BookingDetail
     public List<PassengerInfo> Passengers { get; set; } = [];
     public List<BookingComment> Comments { get; set; } = [];
     public List<BookingAttachmentInfo> Attachments { get; set; } = [];
+
+    public string? McoSupplierName { get; set; }
+    public string? McoSupplierPhone { get; set; }
+    public string? McoSupplierFromEmail { get; set; }
+    public string? McoSupplierSupportEmail { get; set; }
 }
 
 public sealed class BookingAttachmentInfo

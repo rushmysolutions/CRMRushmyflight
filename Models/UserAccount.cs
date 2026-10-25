@@ -11,4 +11,7 @@ public sealed class UserAccount
     public string DisplayName =>
         string.Join(" ", new[] { FirstName, LastName }.Where(s => !string.IsNullOrWhiteSpace(s)))
         is { Length: > 0 } name ? name : Username ?? Email ?? "User";
+    public enum LoginStatus { Success, InvalidCredentials, IpNotAllowed }
+
+    public sealed record LoginResult(LoginStatus Status, UserAccount? User = null);
 }

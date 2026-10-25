@@ -1,0 +1,85 @@
+﻿@using RushMyBookings.Crm.Entities
+@model RushMyBookings.Crm.Entities.Tfn
+@{
+    var isEdit = Model.TfnId > 0;
+    var title = isEdit ? "Edit TFN" : "Add TFN";
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <a asp-action="TFNManagement">TFN Management</a>
+    <span>/</span>
+    <span>@title</span>
+</nav>
+
+<header class="page-header"><h2>TFN</h2></header>
+
+<section class="form-section">
+    <header class="form-section-header">@title</header>
+
+    <div class="p-3" style="padding: 16px 16px 0;">
+        <form asp-action="TfnForm" method="post">
+            <input type="hidden" asp-for="TfnId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+            <div class="form-grid grid-col-4">
+
+                <div class="form-field">
+                    <label asp-for="TfnNumber">
+                        TFN Number (4 digits)<span class="text-danger">*</span>
+                    </label>
+                    <div>
+                        <input asp-for="TfnNumber" class="form-control" maxlength="4" inputmode="numeric" />
+                        <span asp-validation-for="TfnNumber" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label asp-for="DidNumber">
+                        DID Number (11 digits)<span class="text-danger">*</span>
+                    </label>
+                    <div>
+                        <input asp-for="DidNumber" class="form-control" maxlength="11" inputmode="numeric" />
+                        <span asp-validation-for="DidNumber" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label asp-for="Type">
+                        Type<span class="text-danger">*</span>
+                    </label>
+                    <div>
+                        <select asp-for="Type" asp-items="@(new SelectList(Tfn.Types, "Key", "Value"))" class="form-select">
+                            <option value="">-- Select Type --</option>
+                        </select>
+                        <span asp-validation-for="Type" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label asp-for="IsActive">
+                        Status<span class="text-danger">*</span>
+                    </label>
+                    <div>
+                        <select asp-for="IsActive" class="form-select">
+                            <option value="true">Active</option>
+                            <option value="false">In-Active</option>
+                        </select>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="group-btns">
+                <button type="submit" class="btn btn-primary">@(isEdit ? "UPDATE" : "SAVE")</button>
+                <a asp-action="TFNManagement" class="btn btn-dark">Back to List</a>
+            </div>
+          
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,422 @@
+﻿@model BookingDetail
+@{
+    Layout = null;   // standalone email page, not inside the CRM layout
+
+    // true when the send action renders this view as the email body: buttons are left out
+    var isEmail = ViewData["IsEmail"] as bool? == true;
+
+    var customerName = string.IsNullOrWhiteSpace(Model.CardHolderName) ? Model.CustomerName : Model.CardHolderName;
+
+    // Company name + phone from the MCO supplier saved on this booking (tbl_mco_supplier)
+    var companyName = string.IsNullOrWhiteSpace(Model.McoSupplierName) ? "RushMyFlight" : Model.McoSupplierName.Trim();
+    var supportPhone = string.IsNullOrWhiteSpace(Model.McoSupplierPhone) ? "+1-888-889-2208" : Model.McoSupplierPhone.Trim();
+    var phoneLink = new string(supportPhone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+
+    // "You are all set to fly with <airline>."
+    var airline = string.IsNullOrWhiteSpace(Model.Airline) ? companyName : Model.Airline.Trim();
+
+    static string GenderName(string? g) => g?.Trim().ToUpperInvariant() switch
+    {
+        "M" or "MALE" => "Male",
+        "F" or "FEMALE" => "Female",
+        _ => g ?? ""
+    };
+
+    static string FullName(string? first, string? middle, string? last) =>
+        string.Join(" ", new[] { first, middle, last }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()));
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@companyName - E-Ticket @Model.ReferenceNo</title>
+    <style>
+        /* Literal colors only: Gmail/Outlook ignore CSS variables */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+            color: #333;
+            background: #fff;
+            line-height: 1.6;
+        }
+
+        /* ---------- Send button ---------- */
+        .send-bar {
+            padding: 28px 46px;
+        }
+
+        .send-form {
+            display: inline;
+        }
+
+        .btn-send {
+            display: inline-block;
+            background: #ff0000;
+            color: #fff;
+            padding: 12px 18px;
+            border: 1px solid #b30000;
+            border-radius: 3px;
+            font-size: 15px;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 2px 3px rgba(0,0,0,.25);
+        }
+
+            .btn-send:hover {
+                background: #d90000;
+            }
+
+            .btn-send:disabled {
+                opacity: .7;
+                cursor: wait;
+            }
+
+        .send-msg {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 3px;
+            max-width: 750px;
+        }
+
+            .send-msg.ok {
+                background: #e8f5e9;
+                color: #1b5e20;
+                border: 1px solid #a5d6a7;
+            }
+
+            .send-msg.err {
+                background: #fdecea;
+                color: #b71c1c;
+                border: 1px solid #f5c6cb;
+            }
+
+        /* ---------- Wrapper ---------- */
+        .mail-wrap {
+            max-width: 750px;
+            margin: 0 auto;
+            background: #f4f5f9;
+            padding-bottom: 12px;
+        }
+
+        /* ---------- Header ---------- */
+        .mail-header {
+            background: #00153a;
+            color: #fff;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 20px;
+        }
+
+            .mail-header .call {
+                text-align: right;
+                line-height: 1.2;
+            }
+
+                .mail-header .call small {
+                    font-size: 13px;
+                    display: block;
+                }
+
+                .mail-header .call a {
+                    color: #fff;
+                    font-size: 21px;
+                    font-weight: bold;
+                    text-decoration: none;
+                }
+
+            .mail-header img {
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid #fff;
+                background: #ccc;
+            }
+
+        /* ---------- Cards ---------- */
+        .card {
+            background: #fff;
+            margin: 10px 14px 0;
+            padding: 18px;
+        }
+
+        .card-title {
+            background: #00153a;
+            color: #fff;
+            font-size: 17px;
+            font-weight: normal;
+            padding: 8px 18px;
+            margin: 12px 14px 0;
+        }
+
+            .card-title + .card {
+                margin-top: 0;
+            }
+
+        .greeting strong {
+            display: block;
+        }
+
+        .greeting p {
+            color: #444;
+        }
+
+        /* ---------- Booking status ---------- */
+        .status-msg {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 6px 0;
+        }
+
+        .check-icon {
+            flex: 0 0 50px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #8cc63f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .check-icon svg {
+                width: 28px;
+                height: 28px;
+            }
+
+        .status-msg h3 {
+            color: #ff6600;
+            font-size: 17px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .status-msg p {
+            color: #555;
+        }
+
+        /* ---------- Traveler table ---------- */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .traveler-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e3e3e3;
+            font-size: 13px;
+            min-width: 520px;
+        }
+
+            .traveler-table th {
+                background: #f5f5f5;
+                text-align: left;
+                font-size: 14px;
+                padding: 6px 8px;
+                border-bottom: 1px solid #e3e3e3;
+            }
+
+            .traveler-table td {
+                padding: 3px 8px;
+            }
+
+            .traveler-table tr + tr td {
+                border-top: 1px solid #e3e3e3;
+            }
+
+        /* ---------- Booking details (saved from the editor) ---------- */
+        .flight-info {
+            overflow-x: auto;
+            word-break: break-word;
+        }
+
+            .flight-info p {
+                margin: 0 0 6px;
+            }
+
+            .flight-info img {
+                max-width: 100%;
+                height: auto;
+                display: block;
+                margin: 6px 0;
+            }
+
+            .flight-info table {
+                max-width: 100%;
+            }
+
+            .flight-info ol, .flight-info ul {
+                padding-left: 1.6em;
+            }
+
+            .flight-info li[data-list="bullet"] {
+                list-style-type: disc;
+            }
+
+            .flight-info li[data-list="ordered"] {
+                list-style-type: decimal;
+            }
+
+            .flight-info .ql-ui {
+                display: none;
+            }
+
+        .empty-note {
+            color: #666;
+            font-style: italic;
+        }
+
+        /* ---------- Responsive ---------- */
+        @@media (max-width: 640px) {
+            .send-bar {
+                padding: 16px;
+            }
+
+            .mail-header {
+                justify-content: space-between;
+            }
+
+                .mail-header .call a {
+                    font-size: 17px;
+                }
+
+            .card, .card-title {
+                margin-left: 8px;
+                margin-right: 8px;
+            }
+
+            .card {
+                padding: 14px;
+            }
+
+            .status-msg {
+                gap: 14px;
+            }
+
+                .status-msg h3 {
+                    font-size: 15px;
+                }
+        }
+    </style>
+</head>
+<body>
+
+    @if (!isEmail)
+    {
+        <div class="send-bar">
+            <form class="send-form" method="post" asp-action="SendETicketEmail" asp-route-id="@Model.BookId"
+                  onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Sending...';">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-send">Click here Send E-Ticket Email</button>
+            </form>
+            @if (TempData["ETicketSuccess"] is string ticketOk)
+            {
+                <div class="send-msg ok">@ticketOk</div>
+            }
+            @if (TempData["ETicketError"] is string ticketErr)
+            {
+                <div class="send-msg err">@ticketErr</div>
+            }
+        </div>
+    }
+
+    <div class="mail-wrap">
+
+        <!-- Header -->
+        <header class="mail-header">
+            <div class="call">
+                <small>Call us 24/7</small>
+                <a href="tel:@phoneLink">@supportPhone</a>
+            </div>
+            <img src="https://crm.rushmybookings.com/travelcrm/dist/img/telecaller.png" alt="Support agent">
+        </header>
+
+        <!-- Greeting -->
+        <section class="card greeting">
+            <strong>Dear @customerName,</strong>
+            <p>Greetings for the day!</p>
+            <p>You are all set to fly with @airline.</p>
+        </section>
+
+        <!-- Booking Status -->
+        <h2 class="card-title">Booking Status</h2>
+        <section class="card">
+            <div class="status-msg">
+                <div class="check-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7" /></svg>
+                </div>
+                <div>
+                    <h3>Your Reservation is Confirmed!!</h3>
+                    <p>Thank you for booking with us.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Traveler Details -->
+        <h2 class="card-title">Traveler Details</h2>
+        <section class="card">
+            <div class="table-wrap">
+                <table class="traveler-table">
+                    <thead>
+                        <tr><th>S.N.</th><th>Passenger Name</th><th>Gender</th><th>DOB</th><th>E-Ticket No.</th></tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Passengers.Count == 0)
+                        {
+                            <tr><td colspan="5" class="empty-note">No passengers added.</td></tr>
+                        }
+                        @for (var i = 0; i < Model.Passengers.Count; i++)
+                        {
+                            var p = Model.Passengers[i];
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>@FullName(p.FirstName, p.MiddleName, p.LastName)</td>
+                                <td>@GenderName(p.Gender)</td>
+                                <td>@p.Dob</td>
+                                <td>@(string.IsNullOrWhiteSpace(p.TicketNo) ? "CONFIRMED" : p.TicketNo)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Booking Details: exactly what the agent saved in the editor (flight_info) -->
+        <h2 class="card-title">Booking Details</h2>
+        <section class="card flight-info">
+            @if (!string.IsNullOrWhiteSpace(Model.FlightInfo))
+            {
+                @Html.Raw(Model.FlightInfo)
+            }
+            else
+            {
+                <p class="empty-note">Booking details will be shared shortly.</p>
+            }
+        </section>
+
+    </div>
+
+    @if (!isEmail)
+    {
+        <div class="send-bar">
+            <form class="send-form" method="post" asp-action="SendETicketEmail" asp-route-id="@Model.BookId"
+                  onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Sending...';">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-send">Click here Send E-Ticket Email</button>
+            </form>
+        </div>
+    }
+
+</body>
+</html>

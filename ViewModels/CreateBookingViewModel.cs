@@ -1,11 +1,13 @@
-using System.ComponentModel.DataAnnotations;
+using RushMyBookings.Crm.Entities;
 using RushMyBookings.Crm.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace RushMyBookings.Crm.ViewModels;
 
 public sealed class CreateBookingViewModel
 {
     public int? BookId { get; set; }
+    public List<BookingAttachmentInfo> Attachments { get; set; } = [];
 
     public bool IsEdit => BookId is > 0;
 
@@ -33,6 +35,8 @@ public sealed class CreateBookingViewModel
 
     [Display(Name = "TFN")]
     public string? Tfn { get; set; }
+    public IReadOnlyList<Tfn> Tfns { get; set; } = [];
+
 
     public List<PassengerFormModel> Passengers { get; set; } = [new()];
 
@@ -118,6 +122,8 @@ public sealed class CreateBookingViewModel
     public string? Comment { get; set; }
 
     public IReadOnlyList<BookingTypeOption> BookingTypes { get; set; } = [];
+
+    public IReadOnlyList<McoSupplierOption> McoSuppliers { get; set; } = [];
 }
 
 public sealed class PassengerFormModel
@@ -152,4 +158,7 @@ public sealed class PassengerFormModel
         DobDay is > 0 && DobMonth is > 0 && DobYear is > 0
             ? $"{DobMonth}/{DobDay}/{DobYear}"
             : null;
+
+
+
 }

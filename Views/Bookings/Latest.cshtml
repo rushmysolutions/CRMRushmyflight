@@ -1,0 +1,60 @@
+﻿@model IReadOnlyList<LatestCommentItem>
+@{
+    ViewData["Title"] = "Latest Comments";
+    ViewData["ActiveNav"] = "latest-comments";
+    var sr = 1;
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <span>Latest Comments (Last 48 hours comments)</span>
+</nav>
+
+<header class="page-header">
+    <h2>Latest Comments (Last 48 hours comments)</h2>
+</header>
+
+<section class="form-section" style="margin-top:16px;">
+    <header class="form-section-header">Latest Comments List (Last 48 hours comments)</header>
+
+    <div style="padding:15px;">
+        <div class="table-wrap table-responsive">
+            <table class="table table-bordered table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width:40px">#</th>
+                        <th style="width:130px">Booking No.</th>
+                        <th style="width:160px">C-Name</th>
+                        <th>Latest Comments</th>
+                        <th style="width:130px">Booking Created By</th>
+                        <th style="width:130px">Comments Created By</th>
+                        <th style="width:120px">Created Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Count == 0)
+                    {
+                        <tr><td colspan="7" style="text-align:center;">No comments in the last 48 hours.</td></tr>
+                    }
+                    @foreach (var c in Model)
+                    {
+                        <tr>
+                            <td>@(sr++)</td>
+                            <td>
+                                <a asp-controller="Bookings" asp-action="ReadOnly" asp-route-id="@c.BookId"
+                                   target="_blank" rel="noopener">@c.ReferenceNo</a>
+                            </td>
+                            <td>@c.CustomerName</td>
+                            <td style="white-space:pre-wrap; word-break:break-word;">@c.Comment</td>
+                            <td>@c.BookingCreatedBy</td>
+                            <td>@c.CommentCreatedBy</td>
+                            <td>@c.CreatedDate</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:12px;">Showing @Model.Count of @Model.Count.</div>
+    </div>
+</section>

@@ -1,0 +1,87 @@
+﻿@model IReadOnlyList<McoSupplierOption>
+@{
+    ViewData["Title"] = "MCO Supplier Management";
+    ViewData["ActiveNav"] = "mco-supplier";
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <span>MCO Supplier Management</span>
+</nav>
+
+<header class="page-header">
+    <h2>MCO Supplier Management</h2>
+</header>
+
+@if (TempData["Success"] is string msg)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @msg
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<section class="form-section">
+    <header class="form-section-header">MCO Supplier List</header>
+
+    <div class="p-3">
+        <div class="table-wrap table-responsive">
+            <table class="table table-bordered table-striped table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width:50px">#</th>
+                        <th>MCO Supplier Name</th>
+                        <th style="width:140px">Status</th>
+                        <th style="width:140px">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Count; i++)
+                    {
+                        var s = Model[i];
+                        <tr>
+                            <td>@(i + 1)</td>
+                            <td>
+                                <span class="fw-semibold">@s.Name</span>
+                                @if (!string.IsNullOrWhiteSpace(s.FromEmail))
+                                {
+                                    <span class="text-muted">[<a href="mailto:@s.FromEmail">@s.FromEmail</a>]</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @(s.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(s.IsActive ? "Active" : "In-Active")
+                                </span>
+                            </td>
+                            <td class="d-flex gap-1">
+                                <a asp-action="McoSupplierForm" asp-route-id="@s.Id"
+                                   class="btn btn-sm btn-info text-white" title="Edit">✏️</a>
+
+                                <form asp-action="McoSupplierDelete" asp-route-id="@s.Id" method="post"
+                                      onsubmit="return confirm('Are you sure you want to delete @s.Name?');">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete">🗑️</button>
+                                </form>
+
+                                <form asp-action="McoSupplierToggle" asp-route-id="@s.Id" method="post"
+                                      onsubmit="return confirm('Mark @s.Name as @(s.IsActive ? "In-Active" : "Active")?');">
+                                    <button type="submit" title="@(s.IsActive ? "Active" : "In-Active")"
+                                            class="btn btn-sm @(s.IsActive ? "btn-success" : "btn-outline-secondary")">
+                                        ⚑
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+
+                    @if (Model.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-center text-muted">No MCO suppliers found</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-2 text-muted">Showing @Model.Count of @Model.Count.</div>
+    </div>
+</section>

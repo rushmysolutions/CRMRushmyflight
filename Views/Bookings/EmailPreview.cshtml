@@ -1,0 +1,759 @@
+﻿@model BookingDetail
+@{
+    Layout = null;   // standalone email page, not inside the CRM layout
+
+    var customerName = string.IsNullOrWhiteSpace(Model.CardHolderName) ? Model.CustomerName : Model.CardHolderName;
+
+    // created date is stored as "yyyy-MM-dd HH:mm:ss"
+    var hasDate = DateTime.TryParse(Model.CreatedDate, out var bookedOn);
+    var bookedShort = hasDate ? bookedOn.ToString("MMM dd, yyyy") : Model.CreatedDate;
+    var bookedLong = hasDate ? bookedOn.ToString("ddd, MMM dd, yyyy") : Model.CreatedDate;
+
+    static string GenderName(string? g) => g?.Trim().ToUpperInvariant() switch
+    {
+        "M" or "MALE" => "Male",
+        "F" or "FEMALE" => "Female",
+        _ => g ?? ""
+    };
+
+    static string FullName(string? first, string? middle, string? last) =>
+        string.Join(" ", new[] { first, middle, last }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()))
+              .ToUpperInvariant();
+
+    // Company name + phone come from the MCO supplier saved on this booking (tbl_mco_supplier)
+    var companyName = string.IsNullOrWhiteSpace(Model.McoSupplierName) ? "RushMyFlight" : Model.McoSupplierName.Trim();
+    var supportPhone = string.IsNullOrWhiteSpace(Model.McoSupplierPhone) ? "+1-888-889-2208" : Model.McoSupplierPhone.Trim();
+    // true when SendEmail renders this view for the email body: buttons are left out
+    var isEmail = ViewData["IsEmail"] as bool? == true;
+
+    var phoneLink = new string(supportPhone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@companyName - Booking @Model.ReferenceNo</title>
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+            color: #333;
+            background: #fff;
+            line-height: 1.6;
+        }
+
+        /* ---------- Send email button ---------- */
+        .send-bar {
+            padding: 28px 46px;
+        }
+
+        .btn-send {
+            display: inline-block;
+            background: #5a8f00;
+            color: #fff;
+            padding: 12px 16px;
+            border: 1px solid #3f6600;
+            border-radius: 3px;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+            box-shadow: 0 2px 3px rgba(0,0,0,.25);
+        }
+
+            .btn-send:hover {
+                background: #4a7700;
+            }
+
+        /* ---------- Wrapper ---------- */
+        .mail-wrap {
+            max-width: 750px;
+            margin: 0 auto;
+            background: #f4f5f9;
+            padding-bottom: 12px;
+        }
+
+        /* ---------- Header ---------- */
+        .mail-header {
+            background: #00153a;
+            color: #fff;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 20px;
+        }
+
+            .mail-header .call {
+                text-align: right;
+                line-height: 1.2;
+            }
+
+                .mail-header .call small {
+                    font-size: 13px;
+                    display: block;
+                }
+
+                .mail-header .call a {
+                    color: #fff;
+                    font-size: 21px;
+                    font-weight: bold;
+                    text-decoration: none;
+                }
+
+            .mail-header img {
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid #fff;
+                background: #ccc;
+            }
+
+        /* ---------- Cards ---------- */
+        .card {
+            background: #fff;
+            margin: 10px 14px 0;
+            padding: 18px;
+        }
+
+        .card-title {
+            background: #00153a;
+            color: #fff;
+            font-size: 17px;
+            padding: 8px 18px;
+            margin: 12px 14px 0;
+        }
+
+            .card-title + .card {
+                margin-top: 0;
+            }
+
+        .brand-small {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 26px;
+        }
+
+        .greeting strong {
+            display: block;
+        }
+
+        .greeting p {
+            color: #444;
+        }
+
+        /* ---------- Booking status ---------- */
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e3e3e3;
+        }
+
+        .status-msg {
+            display: flex;
+            gap: 16px;
+        }
+
+        .check-icon {
+            flex: 0 0 50px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #8cc63f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .check-icon svg {
+                width: 28px;
+                height: 28px;
+            }
+
+        .status-msg h3 {
+            color: #f26a0f;
+            font-size: 17px;
+            margin-bottom: 4px;
+        }
+
+        .status-msg p {
+            color: #444;
+            font-size: 12px;
+        }
+
+        .ref-box {
+            flex: 0 0 auto;
+            border: 1px solid #ccc;
+            align-self: flex-start;
+            font-size: 12px;
+            min-width: 190px;
+        }
+
+            .ref-box div {
+                padding: 4px 10px;
+            }
+
+                .ref-box div + div {
+                    border-top: 1px solid #ccc;
+                }
+
+            .ref-box .ref-no {
+                color: #f26a0f;
+                font-weight: bold;
+                font-size: 14px;
+                display: block;
+            }
+
+        .confirmation {
+            text-align: center;
+            padding-top: 18px;
+        }
+
+            .confirmation h4 {
+                font-size: 14px;
+                margin-bottom: 12px;
+            }
+
+            .confirmation span {
+                display: inline-block;
+                background: #f3f3f3;
+                color: #f26a0f;
+                font-size: 21px;
+                font-weight: bold;
+                padding: 2px 10px;
+            }
+
+        /* ---------- Flights ---------- */
+        .flight {
+            display: flex;
+            gap: 22px;
+            padding: 14px 4px 16px;
+            max-width: 480px;
+        }
+
+            .flight + .flight {
+                border-top: 1px solid #ccc;
+            }
+
+        .airline-logo {
+            flex: 0 0 40px;
+        }
+
+            .airline-logo img, .airline-logo svg {
+                width: 36px;
+                height: 36px;
+            }
+
+        .flight-head {
+            font-size: 17px;
+            color: #333;
+            margin-bottom: 14px;
+        }
+
+            .flight-head span {
+                color: #999;
+                margin: 0 4px;
+            }
+
+        .timeline {
+            position: relative;
+            padding-left: 26px;
+        }
+
+            .timeline::before {
+                content: "";
+                position: absolute;
+                left: 4px;
+                top: 10px;
+                bottom: 10px;
+                border-left: 2px dotted #ccc;
+            }
+
+        .stop {
+            position: relative;
+            font-size: 14px;
+        }
+
+            .stop::before {
+                content: "";
+                position: absolute;
+                left: -26px;
+                top: 6px;
+                width: 10px;
+                height: 10px;
+                border: 1px solid #bbb;
+                border-radius: 50%;
+                background: #fff;
+            }
+
+            .stop .dot {
+                color: #999;
+                margin: 0 4px;
+            }
+
+        .travel-time {
+            font-size: 12px;
+            color: #777;
+            margin: 8px 0;
+        }
+
+        .flight-meta {
+            font-size: 11px;
+            color: #777;
+            margin: 20px 0 0 26px;
+        }
+
+        /* ---------- Traveler table ---------- */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .traveler-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e3e3e3;
+            font-size: 13px;
+            min-width: 520px;
+        }
+
+            .traveler-table th {
+                background: #f5f5f5;
+                text-align: left;
+                font-size: 14px;
+                padding: 6px 8px;
+            }
+
+            .traveler-table td {
+                padding: 3px 8px;
+            }
+
+            .traveler-table tr + tr td {
+                border-top: 1px solid #e3e3e3;
+            }
+
+        /* ---------- Authorization ---------- */
+        .auth-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e3e3e3;
+        }
+
+            .auth-grid .full {
+                grid-column: 1 / -1;
+            }
+
+            .auth-grid strong {
+                color: #333;
+                word-break: break-word;
+            }
+
+        .orange {
+            color: #f26a0f;
+            font-weight: bold;
+        }
+
+        .terms {
+            padding: 16px 0;
+            border-bottom: 1px solid #f4c2c2;
+            line-height: 2;
+        }
+
+        .auth-action {
+            text-align: center;
+            padding-top: 16px;
+        }
+
+            .auth-action p {
+                color: #e00000;
+                font-weight: bold;
+                font-size: 14px;
+                margin-bottom: 12px;
+            }
+
+        .btn-authorize {
+            display: inline-block;
+            background: #8cc63f;
+            color: #fff;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 10px 16px;
+            border-radius: 3px;
+            text-decoration: none;
+        }
+
+            .btn-authorize:hover {
+                background: #76ad2c;
+            }
+
+        /* ---------- Policies ---------- */
+        .policy h3 {
+            font-size: 17px;
+            margin-bottom: 12px;
+        }
+
+        .policy ul {
+            padding-left: 34px;
+        }
+
+        .policy li {
+            color: #444;
+            font-size: 12px;
+            line-height: 2;
+        }
+
+        .policy .note {
+            color: #444;
+            font-size: 12px;
+            line-height: 2;
+            margin-top: 14px;
+        }
+
+        /* ---------- Footer ---------- */
+        .mail-footer {
+            background: #00153a;
+            color: #fff;
+            text-align: center;
+            font-size: 19px;
+            font-weight: bold;
+            padding: 20px;
+            margin: 10px 14px 0;
+        }
+
+        /* ---------- Responsive ---------- */
+        @@media (max-width: 640px) {
+            .send-bar {
+                padding: 16px;
+            }
+
+            .mail-header {
+                justify-content: space-between;
+            }
+
+                .mail-header .call a {
+                    font-size: 17px;
+                }
+
+            .card, .card-title, .mail-footer {
+                margin-left: 8px;
+                margin-right: 8px;
+            }
+
+            .card {
+                padding: 14px;
+            }
+
+            .status-row {
+                flex-direction: column;
+            }
+
+            .ref-box {
+                width: 100%;
+            }
+
+            .flight {
+                gap: 12px;
+            }
+
+            .flight-head {
+                font-size: 15px;
+            }
+
+            .stop {
+                font-size: 13px;
+            }
+
+            .auth-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .terms {
+                line-height: 1.7;
+            }
+
+            .policy ul {
+                padding-left: 18px;
+            }
+
+            .policy li {
+                line-height: 1.7;
+                margin-bottom: 4px;
+            }
+        }
+
+        /* ---------- Flight info (saved from the editor) ---------- */
+        .flight-info {
+            overflow-x: auto;
+            word-break: break-word;
+        }
+
+            .flight-info p {
+                margin: 0 0 6px;
+            }
+
+            .flight-info img {
+                max-width: 100%;
+                height: auto;
+                display: block;
+                margin: 6px 0;
+            }
+
+            .flight-info table {
+                max-width: 100%;
+            }
+
+            .flight-info ol, .flight-info ul {
+                padding-left: 1.6em;
+            }
+
+            .flight-info li[data-list="bullet"] {
+                list-style-type: disc;
+            }
+
+            .flight-info li[data-list="ordered"] {
+                list-style-type: decimal;
+            }
+
+            .flight-info .ql-ui {
+                display: none;
+            }
+
+        .empty-note {
+            color: #666;
+            font-style: italic;
+        }
+
+        .send-form {
+            display: inline;
+        }
+
+        button.btn-send {
+            font-family: inherit;
+        }
+
+            button.btn-send:disabled {
+                opacity: .7;
+                cursor: wait;
+            }
+
+        .send-msg {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 3px;
+            max-width: 750px;
+        }
+
+            .send-msg.ok {
+                background: #e8f5e9;
+                color: #1b5e20;
+                border: 1px solid #a5d6a7;
+            }
+
+            .send-msg.err {
+                background: #fdecea;
+                color: #b71c1c;
+                border: 1px solid #f5c6cb;
+            }
+    </style>
+</head>
+<body>
+
+    @if (!isEmail)
+    {
+        <div class="send-bar">
+            <form class="send-form" method="post" asp-action="SendEmail" asp-route-id="@Model.BookId"
+                  onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Sending...';">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-send">Click here Send Email</button>
+            </form>
+            @if (TempData["EmailSuccess"] is string emailOk)
+            {
+                <div class="send-msg ok">@emailOk</div>
+            }
+            @if (TempData["EmailError"] is string emailErr)
+            {
+                <div class="send-msg err">@emailErr</div>
+            }
+        </div>
+    }
+
+    <div class="mail-wrap">
+
+        <!-- Header -->
+        <header class="mail-header">
+            <div class="call">
+                <small>Call us 24/7</small>
+                <a href="tel:@phoneLink">@supportPhone</a>
+            </div>
+            <img src="https://crm.rushmybookings.com/travelcrm/dist/img/telecaller.png" alt="Support agent">
+        </header>
+
+        <!-- Greeting -->
+        <section class="card greeting">
+            <p class="brand-small">@companyName</p>
+            <strong>Dear @customerName,</strong>
+            <p>Greetings for the day!</p>
+            <p>As per our conversation and as agreed, we have made changes to your itinerary as follows -</p>
+        </section>
+
+        <!-- Booking Status -->
+        <h2 class="card-title">Booking Status</h2>
+        <section class="card">
+            <div class="status-row">
+                <div class="status-msg">
+                    <div class="check-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7" /></svg>
+                    </div>
+                    <div>
+                        <h3>Your Changes are under process</h3>
+                        <p>Thank you for availing our Services.</p>
+                        <p>Once Approved, You will soon receive an email confirmation for your e-ticket.</p>
+                    </div>
+                </div>
+                <div class="ref-box">
+                    <div>Booking Reference No: <span class="ref-no">@Model.ReferenceNo</span></div>
+                    <div>Booked Date : <strong>@bookedShort</strong></div>
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.Pnr))
+            {
+                <div class="confirmation">
+                    <h4>Confirmation No.</h4>
+                    <span>@Model.Pnr</span>
+                </div>
+            }
+        </section>
+
+        <!-- Flights: exactly what the agent saved in the editor (flight_info) -->
+        <section class="card flight-info">
+            @if (!string.IsNullOrWhiteSpace(Model.FlightInfo))
+            {
+                @Html.Raw(Model.FlightInfo)
+            }
+            else
+            {
+                <p class="empty-note">Flight details will be shared shortly.</p>
+            }
+        </section>
+
+        <!-- Traveler Details -->
+        <h2 class="card-title">Traveler Details</h2>
+        <section class="card">
+            <div class="table-wrap">
+                <table class="traveler-table">
+                    <thead>
+                        <tr><th>S.N.</th><th>Passenger Name</th><th>Gender</th><th>DOB</th><th>E-Ticket No.</th></tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Passengers.Count == 0)
+                        {
+                            <tr><td colspan="5" class="empty-note">No passengers added.</td></tr>
+                        }
+                        @for (var i = 0; i < Model.Passengers.Count; i++)
+                        {
+                            var p = Model.Passengers[i];
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>@FullName(p.FirstName, p.MiddleName, p.LastName)</td>
+                                <td>@GenderName(p.Gender)</td>
+                                <td>@p.Dob</td>
+                                <td>@p.TicketNo</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Credit Card Authorization -->
+        <h2 class="card-title">Credit Card Authorization</h2>
+        <section class="card">
+            <div class="auth-grid">
+                <div>Booking Ref. No.: <span class="orange">@Model.ReferenceNo</span></div>
+                <div>Booked On: <strong>@bookedLong</strong></div>
+                <div>Phone: <strong>@Model.Phone</strong></div>
+                <div>Card: <strong>@FormatHelper.CardTypeName(Model.PaymentMethod) @Model.CardNumberMasked</strong></div>
+                <div>Card Holder: <strong>@customerName</strong></div>
+                <div>Email: <strong>@Model.Email</strong></div>
+                <div class="full">Billing Address: <strong>@Model.BillingAddress @Model.ZipCode</strong></div>
+            </div>
+
+            <div class="terms">
+                <p>Total Amount for changes: <strong>@FormatHelper.Money(Model.TotalAmount, Model.Currency)</strong> may be charged in multiple transactions, however the total amount will be the same as quoted.</p>
+                <p>All charges will be processed under @companyName</p>
+                <p>I acknowledge receipt of this email for related charges described herein and fully understand and agree to the itinerary and restrictions on the tickets, I have checked and verified the itinerary, including all names, flight details, dates and times.</p>
+            </div>
+
+            <div class="auth-action">
+                <p>By Clicking on Authorize Button, You agree to above mentioned terms.</p>
+                <a href="@(ViewData["AckUrl"] as string ?? "#")" class="btn-authorize" target="_blank">Yes, I Authorize</a>
+            </div>
+        </section>
+
+        <!-- Booking Policy -->
+        <section class="card policy">
+            <h3>Booking Policy:</h3>
+            <ul>
+                <li>All Tickets are Non-refundable, Non-changeable and Non-transferable unless specified by the airlines.</li>
+                <li>Cards will be charged once we have received the payment authorization from the cardholder. You would receive your E-tickets and airline confirmation in a separate email.</li>
+                <li>Tickets would be issued once the payment is charged.</li>
+                <li>The payment would be processed after billing verification and authentication done by our verification team.</li>
+                <li>If there is a problem with processing the payment, you would be notified instantly.</li>
+                <li>In case you do not receive an email or call within 24 hours of making this reservation. Then please call us on the number (<strong>@supportPhone</strong>)</li>
+                <li>We strongly recommend all travelers to confirm the status of their flight at least 24-48 hours before departure.</li>
+            </ul>
+        </section>
+
+        <!-- Change Rules -->
+        <section class="card policy">
+            <h3>Change Rules:</h3>
+            <ul>
+                <li>Travel itinerary changes, if permitted by the airline fare rules, might have a change fee imposed by the airline that may be different by market, carrier and specific fare rules. Additionally you need to pay the differ any changes created in your itinerary will incur an admin fee.</li>
+                <li>Name changes are not allowed in any circumstances.</li>
+                <li>Usually tickets are non-refundable unless specified by the airline rules. In the event of a refundable ticket, the airline will charge a penalty as mentioned by the airline in Fare Rules and the refund will be processed date of cancellation request is created. The refund is processed in the same form of payment that is given at the time of booking the reservation. There will be no refund in case of NO SHOWS. Please contact <strong>@supportPhone</strong> Refund.</li>
+            </ul>
+        </section>
+
+        <!-- Flight Rules -->
+        <section class="card policy">
+            <h3>Flight Rules and Restrictions:</h3>
+            <ul>
+                <li>We advice all our passengers to ensure to have all travel documents including Passports, and required visas issued and presented at the time of travel.</li>
+                <li>We advice all our passengers to review their tickets and itinerary upon receipt. All times shown in the itinerary are local times.</li>
+                <li>All passengers are recommended to be present at the airport 3 hours prior to departure for international departures, and 2 prior to domestic travel.</li>
+                <li>All International flights must be confirmed 72 hours prior to departure.</li>
+                <li>All tickets returned for refund or reissue in addition to any applicable airline charges if any. We do not assume responsibility for and will not compensate passengers for travel interruptions caused by matters beyond our control including those caused by Acts of God and changes made by carriers/hotels/car rental companies/tour operators, etc.</li>
+                <li>We strongly advice all our customers of the importance of travel insurance and the conditions that apply to tickets.</li>
+                <li>We will not be responsible for any expense incurred as a result of the refusal to purchase travel insurance.</li>
+            </ul>
+            <p class="note">Please make a note of this number (<strong>@supportPhone</strong>) or print this email for your records. This is a confirmation of your booking request. We will send you the e-Ticket Receipt shortly.</p>
+        </section>
+
+        <footer class="mail-footer">@companyName</footer>
+    </div>
+
+    @if (!isEmail)
+    {
+        <div class="send-bar">
+            <form class="send-form" method="post" asp-action="SendEmail" asp-route-id="@Model.BookId"
+                  onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Sending...';">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-send">Click here Send Email</button>
+            </form>
+        </div>
+    }
+
+</body>
+</html>

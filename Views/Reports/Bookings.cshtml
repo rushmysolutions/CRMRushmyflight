@@ -1,0 +1,395 @@
+﻿@using static RushMyBookings.Crm.Helpers.FormatHelper
+@model BookingReportViewModel
+@{
+    ViewData["Title"] = "Booking Report";
+    ViewData["ActiveNav"] = "booking-report";
+    var f = Model.Filter;
+    var mask = Model.IsAgent;
+
+    object RouteFor(int page) => new
+    {
+        f.AgentId,
+        f.TicketStatus,
+        f.McoStatus,
+        f.McoSupplier,
+        f.Tfn,
+        DateFrom = f.DateFrom?.ToString("yyyy-MM-ddTHH:mm"),
+        DateTo = f.DateTo?.ToString("yyyy-MM-ddTHH:mm"),
+        Page = page,
+        f.PageSize
+    };
+
+    var startPage = Math.Max(1, f.Page - 2);
+    var endPage = Math.Min(Model.TotalPages, startPage + 4);
+    startPage = Math.Max(1, endPage - 4);
+}
+
+<style>
+    .rpt-filters {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        padding: 16px;
+    }
+
+        .rpt-filters .form-field {
+            margin: 0;
+        }
+
+        .rpt-filters select, .rpt-filters input {
+            width: 100%;
+        }
+
+    .rpt-actions {
+        display: flex;
+        gap: 10px;
+        align-items: end;
+    }
+
+        .rpt-actions .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+    .rpt-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px 0;
+    }
+
+        .rpt-toolbar .rpt-count {
+            font-size: 13px;
+            opacity: .8;
+        }
+
+    .rpt-downloads {
+        display: flex;
+        gap: 8px;
+    }
+
+    .rpt-table td {
+        vertical-align: top;
+    }
+
+    .rpt-table .rpt-amount {
+        white-space: nowrap;
+        line-height: 1.5;
+    }
+
+        .rpt-table .rpt-amount small {
+            display: block;
+            opacity: .7;
+        }
+
+    .rpt-status {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+
+        .rpt-status small {
+            font-size: 10px;
+            opacity: .7;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+
+    .rpt-empty {
+        text-align: center;
+        padding: 28px 0;
+        opacity: .7;
+    }
+
+    .rpt-pager {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px 16px;
+    }
+
+    .rpt-pages {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+        .rpt-pages .btn {
+            min-width: 38px;
+            padding: 6px 10px;
+            text-align: center;
+        }
+
+        .rpt-pages .is-disabled {
+            pointer-events: none;
+            opacity: .45;
+        }
+
+    .rpt-size {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 13px;
+    }
+
+    @@media (max-width: 1100px) {
+        .rpt-filters {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .rpt-filters {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <span>Booking Report</span>
+</nav>
+
+<header class="page-header">
+    <h2>Booking Report</h2>
+    <p>@(mask ? "Your bookings" : "All agents") · filter, review and download</p>
+</header>
+
+@if (TempData["ReportInfo"] is string info)
+{
+    <div class="alert">@info</div>
+}
+
+<!-- Filters -->
+<section class="form-section">
+    <header class="form-section-header">Search By</header>
+
+    <form method="get" asp-action="Bookings" class="rpt-filters">
+        <input type="hidden" name="PageSize" value="@f.PageSize" />
+
+        @if (!mask)
+        {
+            <div class="form-field">
+                <label for="AgentId">Agent</label>
+                <select id="AgentId" name="AgentId">
+                    <option value="">- Select Agent -</option>
+                    @foreach (var a in Model.Options.Agents)
+                    {
+                        <option value="@a.Value" selected="@(a.Value == f.AgentId)">@a.Label</option>
+                    }
+                </select>
+            </div>
+        }
+
+        <div class="form-field">
+            <label for="TicketStatus">Ticket Status</label>
+            <select id="TicketStatus" name="TicketStatus">
+                <option value="">- Select Ticket Status -</option>
+                @foreach (var o in BookingStatusHelper.TicketStatuses)
+                {
+                    <option value="@o.Value" selected="@(o.Value == f.TicketStatus)">@o.Label</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label for="McoStatus">MCO Status</label>
+            <select id="McoStatus" name="McoStatus">
+                <option value="">- Select MCO Status -</option>
+                @foreach (var o in BookingStatusHelper.McoStatuses)
+                {
+                    <option value="@o.Value" selected="@(o.Value == f.McoStatus)">@o.Label</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label for="McoSupplier">MCO Supplier</label>
+            <select id="McoSupplier" name="McoSupplier">
+                <option value="">- Select MCO Supplier -</option>
+                @foreach (var s in Model.Options.McoSuppliers)
+                {
+                    <option value="@s.Value" selected="@(s.Value == f.McoSupplier)">@s.Label</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label for="Tfn">TFN</label>
+            <select id="Tfn" name="Tfn">
+                <option value="">- Select TFN -</option>
+                @foreach (var t in Model.Options.Tfns)
+                {
+                    <option value="@t.Value" selected="@(t.Value == f.Tfn)">@t.Label</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label for="DateFrom">Date From</label>
+            <input id="DateFrom" name="DateFrom" type="datetime-local"
+                   value="@(f.DateFrom?.ToString("yyyy-MM-ddTHH:mm"))" />
+        </div>
+
+        <div class="form-field">
+            <label for="DateTo">Date To</label>
+            <input id="DateTo" name="DateTo" type="datetime-local"
+                   value="@(f.DateTo?.ToString("yyyy-MM-ddTHH:mm"))" />
+        </div>
+
+        <div class="rpt-actions">
+            <button type="submit" class="btn primary">🔍 Search</button>
+            <a class="btn" asp-action="Bookings">Reset</a>
+        </div>
+    </form>
+</section>
+
+<!-- Results -->
+<section class="form-section" style="margin-top:16px;">
+    <header class="form-section-header">Booking Report</header>
+
+    <div class="rpt-toolbar">
+        <div class="rpt-count">
+            Showing <strong>@Model.FirstRow</strong>–<strong>@Model.LastRow</strong> of <strong>@Model.TotalCount</strong> bookings
+        </div>
+        <div class="rpt-downloads">
+            <a class="btn" asp-action="BookingsExcel" asp-all-route-data="@ToRouteDict(RouteFor(1))">⬇ Excel</a>
+            <a class="btn" asp-action="BookingsTxt" asp-all-route-data="@ToRouteDict(RouteFor(1))">⬇ TXT</a>
+        </div>
+    </div>
+
+    <div style="padding:14px 16px 0;">
+        <div class="table-wrap table-responsive">
+            <table class="table table-bordered table-striped table-hover rpt-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Booking No.</th>
+                        <th>C-Name</th>
+                        <th>C-Phone</th>
+                        <th>Gross / Net MCO</th>
+                        <th>Created By</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Follow-Up</th>
+                        <th>Download</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Rows.Count == 0)
+                    {
+                        <tr><td colspan="10" class="rpt-empty">No bookings match these filters.</td></tr>
+                    }
+                    @{
+                        var sr = Model.FirstRow;
+                    }
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td>@(sr++)</td>
+                            <td>
+                                <a asp-controller="Bookings" asp-action="Details" asp-route-id="@r.BookId"
+                                   target="_blank" rel="noopener">@r.ReferenceNo</a>
+                            </td>
+                            <td>@FormatHelper.Display(r.CustomerName)</td>
+                            <td>@(mask ? SensitiveMask.Value(r.Phone) : FormatHelper.Display(r.Phone))</td>
+                            <td class="rpt-amount">
+                                @FormatHelper.Money(r.GrossMco, r.Currency)
+                                <small>@FormatHelper.Money(r.NetMco, r.Currency)</small>
+                            </td>
+                            <td>@FormatHelper.Display(r.CreatedByName)</td>
+                            <td style="white-space:nowrap;">@FormatHelper.Display(r.CreatedDate)</td>
+                            <td>
+                                <div class="rpt-status">
+                                    <small>Ticket</small>
+                                    <span class="badge @BookingStatusHelper.TicketStatusClass(r.TicketStatus)">
+                                        @BookingStatusHelper.TicketStatusLabel(r.TicketStatus)
+                                    </span>
+                                    <small>MCO</small>
+                                    <span class="badge @BookingStatusHelper.McoStatusClass(r.McoStatus)">
+                                        @BookingStatusHelper.McoStatusLabel(r.McoStatus)
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge @BookingStatusHelper.FollowUpClass(r.FollowUpBy, r.FollowUpDate)">
+                                    @BookingStatusHelper.FollowUpLabel(r.FollowUpBy, r.FollowUpDate)
+                                </span>
+                            </td>
+                            <td>
+                                <a asp-action="BookingTxt" asp-route-id="@r.BookId">Export TXT</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="rpt-pager">
+        <form method="get" asp-action="Bookings" class="rpt-size">
+            <input type="hidden" name="AgentId" value="@f.AgentId" />
+            <input type="hidden" name="TicketStatus" value="@f.TicketStatus" />
+            <input type="hidden" name="McoStatus" value="@f.McoStatus" />
+            <input type="hidden" name="McoSupplier" value="@f.McoSupplier" />
+            <input type="hidden" name="Tfn" value="@f.Tfn" />
+            <input type="hidden" name="DateFrom" value="@(f.DateFrom?.ToString("yyyy-MM-ddTHH:mm"))" />
+            <input type="hidden" name="DateTo" value="@(f.DateTo?.ToString("yyyy-MM-ddTHH:mm"))" />
+            <span>Show</span>
+            <select name="PageSize" onchange="this.form.submit()">
+                @foreach (var size in new[] { 25, 50, 100 })
+                {
+                    <option value="@size" selected="@(size == f.PageSize)">@size</option>
+                }
+            </select>
+            <span>entries</span>
+        </form>
+
+        <div class="rpt-pages">
+            <a class="btn @(f.Page <= 1 ? "is-disabled" : "")"
+               asp-action="Bookings" asp-all-route-data="@ToRouteDict(RouteFor(f.Page - 1))">‹ Prev</a>
+
+            @if (startPage > 1)
+            {
+                <a class="btn" asp-action="Bookings" asp-all-route-data="@ToRouteDict(RouteFor(1))">1</a>
+                @if (startPage > 2)
+                {
+                    <span style="align-self:center;">…</span>
+                }
+            }
+
+            @for (var p = startPage; p <= endPage; p++)
+            {
+                <a class="btn @(p == f.Page ? "primary" : "")"
+                   asp-action="Bookings" asp-all-route-data="@ToRouteDict(RouteFor(p))">@p</a>
+            }
+
+            @if (endPage < Model.TotalPages)
+            {
+                @if (endPage < Model.TotalPages - 1)
+                {
+                    <span style="align-self:center;">…</span>
+                }
+                <a class="btn" asp-action="Bookings" asp-all-route-data="@ToRouteDict(RouteFor(Model.TotalPages))">@Model.TotalPages</a>
+            }
+
+            <a class="btn @(f.Page >= Model.TotalPages ? "is-disabled" : "")"
+               asp-action="Bookings" asp-all-route-data="@ToRouteDict(RouteFor(f.Page + 1))">Next ›</a>
+        </div>
+    </div>
+</section>
+
+@functions {
+    private static Dictionary<string, string> ToRouteDict(object values) =>
+        values.GetType().GetProperties()
+              .Select(p => (p.Name, Value: p.GetValue(values)?.ToString()))
+              .Where(x => !string.IsNullOrEmpty(x.Value))
+              .ToDictionary(x => x.Name, x => x.Value!);
+}

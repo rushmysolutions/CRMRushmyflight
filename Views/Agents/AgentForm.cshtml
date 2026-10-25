@@ -1,0 +1,144 @@
+﻿@model AgentFormViewModel
+@{
+    var title = Model.IsEdit ? "Edit Agent Profile" : "Create New Agent Profile";
+    ViewData["Title"] = title;
+    ViewData["ActiveNav"] = "agents";
+}
+
+<nav class="breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a>
+    <span>/</span>
+    <a asp-action="Index">Agent List</a>
+    <span>/</span>
+    <span>@title</span>
+</nav>
+
+<header class="page-header">
+    <h2>@title</h2>
+    <p>@(Model.IsEdit ? "Agent details update kariye" : "Password apne aap generate hoga aur Agent List mein dikhega")</p>
+</header>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert validation-summary" asp-validation-summary="All"></div>
+}
+
+<form class="booking-form" method="post" asp-action="AgentForm">
+    <input type="hidden" asp-for="UserId" />
+
+    <section class="form-section">
+        <header class="form-section-header">Personal Information</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="FirstName">First Name <span class="text-danger">*</span></label>
+                <input asp-for="FirstName" maxlength="60" />
+                <span asp-validation-for="FirstName" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="LastName">Last Name</label>
+                <input asp-for="LastName" maxlength="60" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Phone">Phone Number <span class="text-danger">*</span></label>
+                <input asp-for="Phone" maxlength="15" />
+                <span asp-validation-for="Phone" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Email">Email ID</label>
+                <input asp-for="Email" type="email" maxlength="60" />
+                <small class="field-hint">Email ID unique honi chahiye</small>
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Dob">Date of Birth</label>
+                <input asp-for="Dob" placeholder="MM/DD/YYYY" maxlength="10" />
+                <span asp-validation-for="Dob" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label>Gender</label>
+                <div class="d-flex gap-4 pt-2">
+                    <label><input type="radio" asp-for="Sex" value="0" /> Male</label>
+                    <label><input type="radio" asp-for="Sex" value="1" /> Female</label>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Phone Lines</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="TollFreeNo">Toll Free No</label>
+                <input asp-for="TollFreeNo" maxlength="15" />
+            </div>
+            <div class="form-field">
+                <label asp-for="DirectLine">Direct Line</label>
+                <input asp-for="DirectLine" maxlength="15" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Extn">Extn</label>
+                <input asp-for="Extn" maxlength="5" />
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Address</header>
+        <div class="form-grid">
+            <div class="form-field span-2">
+                <label asp-for="Address">Address</label>
+                <input asp-for="Address" maxlength="60" />
+            </div>
+            <div class="form-field">
+                <label asp-for="City">City</label>
+                <input asp-for="City" maxlength="60" />
+            </div>
+            <div class="form-field">
+                <label asp-for="State">State</label>
+                <input asp-for="State" maxlength="60" />
+            </div>
+            <div class="form-field">
+                <label asp-for="ZipCode">Zip Code</label>
+                <input asp-for="ZipCode" maxlength="8" />
+            </div>
+            <div class="form-field">
+                <label asp-for="Country">Country</label>
+                <select asp-for="Country"
+                        asp-items="@(new SelectList(AgentFormViewModel.Countries, "Key", "Value"))"></select>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Login Details</header>
+        <div class="form-grid">
+            <div class="form-field">
+                <label asp-for="UserType">Type <span class="text-danger">*</span></label>
+                <select asp-for="UserType"
+                        asp-items="@(new SelectList(AgentFormViewModel.UserTypes))"></select>
+                <span asp-validation-for="UserType" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Username">Username <span class="text-danger">*</span></label>
+                <input asp-for="Username" maxlength="60" />
+                <small class="field-hint">Username unique hona chahiye, isi se login hoga</small>
+                <span asp-validation-for="Username" class="text-danger small"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="DialerId">Dialer ID</label>
+                <input asp-for="DialerId" maxlength="60" />
+                <small class="field-hint">Dialer ID unique honi chahiye, isse dialer system ka data aata hai</small>
+                <span asp-validation-for="DialerId" class="text-danger small"></span>
+            </div>
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button type="submit" class="btn primary">@(Model.IsEdit ? "Update Agent" : "Create New")</button>
+        <a class="btn" asp-action="Index">Back to List</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
