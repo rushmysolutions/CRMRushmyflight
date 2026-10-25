@@ -5,3 +5,5 @@
 /bin/Debug/net10.0
 /obj
 /.vs/RushMyBookings.Crm.slnx
+/Properties/PublishProfiles
+/bin/Release/net10.0
