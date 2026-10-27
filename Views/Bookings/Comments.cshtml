@@ -30,7 +30,7 @@
 </header>
 
 <article class="detail-card">
-    <h3>Add comment</h3>
+    <h3 style="margin-top: 0;">Add comment</h3>
     <form method="post" asp-action="AddComment" asp-route-id="@Model.BookId" class="comment-form">
         @Html.AntiForgeryToken()
         <input type="hidden" name="ReturnPage" value="@Model.ReturnPage" />
@@ -41,7 +41,7 @@
     </form>
 </article>
 
-<article class="detail-card">
+@* <article class="detail-card wrap-feedback">
     <h3>Comment history (@Model.Comments.Count)</h3>
     @if (Model.Comments.Count == 0)
     {
@@ -57,5 +57,58 @@
                 <p>@(c.Comment ?? "")</p>
             </div>
         }
+    }
+</article> *@
+
+
+<article class="detail-card wrap-feedback">
+    <div class="feedback-header">
+        <div>
+            <h3>Comment history</h3>
+            <span class="feedback-count">@Model.Comments.Count comments</span>
+        </div>
+        <div class="feedback-icon">
+            💬
+        </div>
+    </div>
+
+    @if (Model.Comments.Count == 0)
+    {
+        <div class="empty-comments">
+            <div class="empty-comments-icon">💬</div>
+            <strong>No comments yet</strong>
+            <span>There are no comments or feedback available.</span>
+        </div>
+    }
+    else
+    {
+        <div class="comments-timeline">
+            @foreach (var c in Model.Comments)
+            {
+                var author = c.AuthorName ?? c.Username ?? "System";
+
+                <div class="comment-item">
+                    <div class="comment-avatar">
+                        @author.Substring(0, 1).ToUpper()
+                    </div>
+
+                    <div class="comment-content">
+                        <div class="comment-meta">
+                            <div>
+                                <strong>@author</strong>
+                            </div>
+
+                            <time>
+                                @(c.CreatedDate ?? "")
+                            </time>
+                        </div>
+
+                        <div class="comment-message">
+                            @(c.Comment ?? "")
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
     }
 </article>

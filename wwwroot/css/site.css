@@ -3540,3 +3540,244 @@ a:focus-visible,
 .grid-col-4 {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
+
+
+
+
+/* ================================
+   Feedback / Comment History
+   ================================ */
+
+.wrap-feedback {
+    margin-top: 24px;
+    padding: 0;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #e6eaf0;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+}
+
+.feedback-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 22px;
+    border-bottom: 1px solid #edf0f4;
+    background: #fafbfc;
+}
+
+    .feedback-header h3 {
+        margin: 0;
+        color: #172033;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+    }
+
+.feedback-count {
+    display: block;
+    margin-top: 4px;
+    color: #7a8496;
+    font-size: 12px;
+}
+
+.feedback-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #eef4ff;
+    font-size: 17px;
+}
+
+.comments-timeline {
+    position: relative;
+    padding: 22px;
+}
+
+    .comments-timeline::before {
+        content: "";
+        position: absolute;
+        left: 41px;
+        top: 36px;
+        bottom: 36px;
+        width: 1px;
+        background: #e3e8ef;
+    }
+
+.comment-item {
+    position: relative;
+    display: flex;
+    gap: 14px;
+    padding-bottom: 22px;
+}
+
+    .comment-item:last-child {
+        padding-bottom: 0;
+    }
+
+.comment-avatar {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #193054;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 7px rgba(25, 48, 84, 0.18);
+}
+
+.comment-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.comment-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 8px;
+}
+
+    .comment-meta > div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .comment-meta strong {
+        color: #1c2738;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+.comment-role {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: #f0f4f9;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.comment-meta time {
+    color: #8a94a6;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.comment-message {
+    padding: 13px 15px;
+    background: #f8fafc;
+    border: 1px solid #edf0f4;
+    border-radius: 4px 12px 12px 12px;
+    color: #445066;
+    font-size: 13px;
+    line-height: 1.65;
+    word-break: break-word;
+    transition: all 0.2s ease;
+}
+
+.comment-item:hover .comment-message {
+    background: #f5f8fc;
+    border-color: #dfe6ef;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+}
+
+.comment-item:hover .comment-avatar {
+    transform: translateY(-1px);
+}
+
+/* Empty state */
+
+.empty-comments {
+    min-height: 180px;
+    padding: 30px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.empty-comments-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    font-size: 20px;
+}
+
+.empty-comments strong {
+    color: #334155;
+    font-size: 14px;
+}
+
+.empty-comments span {
+    margin-top: 5px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+/* Responsive */
+
+@media (max-width: 650px) {
+
+    .feedback-header {
+        padding: 16px;
+    }
+
+    .comments-timeline {
+        padding: 18px 16px;
+    }
+
+        .comments-timeline::before {
+            left: 34px;
+        }
+
+    .comment-avatar {
+        width: 34px;
+        height: 34px;
+        flex-basis: 34px;
+        font-size: 12px;
+    }
+
+    .comment-item {
+        gap: 10px;
+    }
+
+    .comment-meta {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+        .comment-meta time {
+            font-size: 10px;
+        }
+
+    .comment-message {
+        padding: 11px 12px;
+        font-size: 12px;
+    }
+}
