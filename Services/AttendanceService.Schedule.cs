@@ -218,12 +218,33 @@ public partial class AttendanceService
             row.WeekOffMask = mask;
         }
 
+        // Personal ShiftId overrides used to block flexible timing for the whole team.
+        // When the team is flexible, clear those so every member can punch any time.
+        var cleared = 0;
+        if (flexible)
+        {
+            var memberIds = await db.Employees.AsNoTracking()
+                .Where(e => e.TeamId == model.TeamId)
+                .Select(e => e.EmployeeId)
+                .ToListAsync();
+
+            if (memberIds.Count > 0)
+            {
+                cleared = await db.EmployeeSchedules
+                    .Where(s => memberIds.Contains(s.EmployeeId) && s.ShiftId != null)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.ShiftId, (int?)null));
+            }
+        }
+
         await db.SaveChangesAsync();
 
         var timing = flexible
             ? "Timing: flexible (no fixed shift — opt in/out any time)."
             : "Timing: fixed shift.";
-        return (true, $"Team schedule saved. {timing} Week-offs: {WeekOffDays.Describe(mask)}.");
+        var overrideNote = flexible && cleared > 0
+            ? $" Cleared personal shift on {cleared} team member(s)."
+            : "";
+        return (true, $"Team schedule saved. {timing}{overrideNote} Week-offs: {WeekOffDays.Describe(mask)}.");
     }
 
     public async Task<ScheduleEditViewModel?> GetEmployeeScheduleEditAsync(int employeeId)
@@ -330,12 +351,12 @@ public partial class AttendanceService
                 .FirstOrDefaultAsync(s => s.TeamId == teamId);
         }
 
-        // A personal shift override still wins. Otherwise a flexible team
-        // means no fixed timing at all for this employee.
-        var isFlexible = empSched?.ShiftId is null
-            && teamSched?.IsFlexibleTiming == true;
+        // Team flexible timing wins for everyone on that team.
+        // (Personal ShiftId used to block this — Sales / similar teams never got free punches.)
+        var isFlexible = teamSched?.IsFlexibleTiming == true;
 
         // Employee override wins; else team; else no shift (calendar day).
+        // Flexible team → no shift window at all.
         ShiftTemplate? shift = null;
         if (isFlexible)
         {
@@ -671,7 +692,7 @@ public partial class AttendanceService
                     ? (emp.FirstName ?? "")
                     : $"{emp.FirstName} {emp.LastName}",
                 TeamName = emp.Team?.Name,
-                ShiftLabel = empSched?.ShiftId is null && teamSched?.IsFlexibleTiming == true
+                ShiftLabel = teamSched?.IsFlexibleTiming == true
                     ? "Flexible — any time"
                     : shift is null
                         ? "No shift set"

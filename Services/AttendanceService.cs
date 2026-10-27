@@ -794,8 +794,9 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
             return (false, "Today is a week-off on your roster/schedule. Contact HR if you need to work.");
         }
 
-        // If a shift is set, only allow punches inside Start → End (cutoff), including after midnight for night shifts.
-        if (work.HasShift &&
+        // Flexible teams skip the window check. Fixed shifts only punch inside Start → End.
+        if (!work.IsFlexibleTiming &&
+            work.HasShift &&
             !AttendanceClock.IsWithinShiftWindow(nowLocal, today, work.ShiftStart!.Value, work.ShiftEnd!.Value))
         {
             var timing = AttendanceClock.FormatShift(work.ShiftStart.Value, work.ShiftEnd.Value);

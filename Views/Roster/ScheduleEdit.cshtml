@@ -42,9 +42,8 @@
             @if (Model.TeamNoFixedShift)
             {
                 <p class="muted" style="margin-top:0;">
-                    This employee’s team has <strong>flexible timing</strong> (no fixed shift).
-                    Using the team default means they can opt in / opt out at any time.
-                    Picking a personal shift above makes only this employee fixed-time.
+                    This employee’s team has <strong>flexible timing</strong> — they can opt in / opt out at any time.
+                    A personal shift here is ignored while the team stays flexible.
                 </p>
             }
         }
@@ -57,7 +56,8 @@
                     <span><strong>No fixed shift timing</strong> — team can opt in / opt out at any time</span>
                 </label>
                 <p class="muted" style="margin:6px 0 0;">
-                    Week-offs still apply. Employees with a personal shift override stay on that shift.
+                    Week-offs still apply. Saving this clears personal shifts for everyone on the team
+                    so they can all opt in / opt out at any time.
                 </p>
             </div>
         }
@@ -77,11 +77,13 @@
 
         <div class="form-field" id="shiftField">
             <label asp-for="ShiftId">Shift</label>
-            <select asp-for="ShiftId" id="shiftId">
+            @* Keep a live value when the dropdown is disabled (disabled fields are not posted). *@
+            <input type="hidden" name="ShiftId" id="shiftIdHidden" value="@(Model.NoFixedShift ? "" : Model.ShiftId?.ToString() ?? "")" />
+            <select id="shiftIdSelect" @(Model.NoFixedShift ? "disabled" : null)>
                 <option value="">— None (calendar day / midnight) —</option>
                 @foreach (var s in Model.Shifts)
                 {
-                    if (Model.ShiftId == s.ShiftId)
+                    if (Model.ShiftId == s.ShiftId && !Model.NoFixedShift)
                     {
                         <option value="@s.ShiftId" selected>@s.Name — @s.TimingLabel</option>
                     }
@@ -127,14 +129,24 @@
     <script>
         (function () {
             var flexible = document.getElementById('noFixedShift');
-            var shift = document.getElementById('shiftId');
-            if (!flexible || !shift) return;
-            function sync() {
-                // Flexible team has no shift to pick — disable the dropdown.
-                shift.disabled = flexible.checked;
+            var shift = document.getElementById('shiftIdSelect');
+            var hidden = document.getElementById('shiftIdHidden');
+            if (!shift || !hidden) return;
+
+            function syncHidden() {
+                // Flexible = no shift. Otherwise keep whatever is selected.
+                if (flexible && flexible.checked) {
+                    hidden.value = '';
+                    shift.disabled = true;
+                } else {
+                    shift.disabled = false;
+                    hidden.value = shift.value || '';
+                }
             }
-            flexible.addEventListener('change', sync);
-            sync();
+
+            if (flexible) flexible.addEventListener('change', syncHidden);
+            shift.addEventListener('change', syncHidden);
+            syncHidden();
         })();
     </script>
 }
