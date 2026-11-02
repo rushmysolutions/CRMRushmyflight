@@ -78,6 +78,7 @@ public sealed class BookingDetail
     public string? CustomEmailSubject { get; init; }
     public string? Tfn { get; init; }
     public string? CardHolderName { get; init; }
+    public string? CardNumber { get; init; }
     public string? CardNumberMasked { get; init; }
     public string? ExpiryDate { get; init; }
     public string? InboundPhone { get; init; }

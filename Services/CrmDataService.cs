@@ -462,6 +462,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             CustomEmailSubject = booking.CustomEmailSubject,
             Tfn = booking.TravelPhoneNumber,
             CardHolderName = booking.CardHolderName ?? booking.CustomerName,
+            CardNumber = DecryptCard(booking.CardNumber),
             CardNumberMasked = FormatHelper.MaskCard(booking.CardNumber, booking.LastFourCardDigits),
             ExpiryDate = booking.ExpiryDate,
             InboundPhone = booking.InboundPhone,
@@ -917,9 +918,9 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 }).ToList(),
             CardHolderName = booking.CardHolderName ?? booking.CustomerName,
             CardType = booking.PaymentMethod,
-            CardNumber = booking.CardNumber, /*MaskCardNumber(booking.CardNumber, booking.LastFourCardDigits)*/
+            CardNumber = DecryptCard(booking.CardNumber),
             ExpiryDate = booking.ExpiryDate,
-            Cvv = booking.Cvv,
+            Cvv = DecryptCvv(booking.Cvv),
             InboundPhone = booking.InboundPhone,
             BillingPhone = booking.Phone,
             Email = booking.Email,
@@ -1847,7 +1848,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         foreach (var r in rows)
         {
             r.CardNumber = DecryptCard(r.CardNumber);
-            r.Cvv = DecryptCard(r.Cvv);
+            r.Cvv = DecryptCvv(r.Cvv);
         }
 
         var passengerText = passengers
@@ -1955,8 +1956,9 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }).ToList();
     }
 
-    // TODO: use the SAME decrypt call your GetBookingForEditAsync uses for CardNumber / Cvv.
-    private static string? DecryptCard(string? stored) => stored;
+    private static string? DecryptCard(string? stored) => CardCrypto.DecryptCardNumber(stored);
+
+    private static string? DecryptCvv(string? stored) => CardCrypto.DecryptCvv(stored);
 
 
 
