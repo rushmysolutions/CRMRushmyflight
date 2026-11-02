@@ -23,9 +23,11 @@ namespace RushMyBookings.Crm.ViewModels
         [EmailAddress(ErrorMessage = "Enter a valid email"), StringLength(50)]
         public string FromEmail { get; set; } = "";
 
-        [Required(ErrorMessage = "SMTP Password is required"), StringLength(50)]
-        public string SmtpPass { get; set; } = "";
+        // Blank = keep the existing password
+        [StringLength(50)]
+        public string? NewSmtpPass { get; set; }
 
+        public string? SmtpPass { get; set; }
         public bool HasSmtpPass { get; set; }
 
         public bool IsActive { get; set; } = true;

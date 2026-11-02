@@ -26,6 +26,45 @@
         public IReadOnlyList<ReportOption> Tfns { get; set; } = [];
     }
 
+    //public sealed class BookingReportRow
+    //{
+    //    public int BookId { get; set; }
+    //    public string? ReferenceNo { get; set; }
+    //    public string? TypeName { get; set; }
+    //    public string? DropSale { get; set; }
+    //    public string? TravelDate { get; set; }
+    //    public string? AirlineName { get; set; }
+    //    public string? Tfn { get; set; }
+    //    public string? CardHolderName { get; set; }
+    //    public string? CardType { get; set; }
+    //    public string? CardNumber { get; set; }
+    //    public string? ExpiryDate { get; set; }
+    //    public string? Cvv { get; set; }
+    //    public string? BillingPhone { get; set; }
+    //    public string? ContactPhone { get; set; }
+    //    public string? Email { get; set; }
+    //    public string? City { get; set; }
+    //    public string? State { get; set; }
+    //    public string? Zip { get; set; }
+    //    public string? Country { get; set; }
+    //    public string? AirlineConfirmation { get; set; }
+    //    public string? AmadeusPnr { get; set; }
+    //    public string? TicketStatus { get; set; }
+    //    public string? Supplier { get; set; }
+    //    public string? TicketCost { get; set; }
+    //    public string? IssuanceFee { get; set; }
+    //    public double Mco { get; set; }
+    //    public double NetMco { get; set; }
+    //    public double Total { get; set; }
+    //    public string? PartialRefund { get; set; }
+    //    public string? CreditValue { get; set; }
+    //    public string? McoSupplierId { get; set; }
+    //    public string? McoSupplierName { get; set; }
+    //    public string? McoStatus { get; set; }
+    //    public string? CreatedByName { get; set; }
+    //    public string? CreatedDate { get; set; }
+    //}
+
     public sealed class BookingReportRow
     {
         public int BookId { get; set; }
@@ -55,4 +94,5 @@
         public int FirstRow => TotalCount == 0 ? 0 : (Filter.Page - 1) * Filter.PageSize + 1;
         public int LastRow => Math.Min(Filter.Page * Filter.PageSize, TotalCount);
     }
+
 }
