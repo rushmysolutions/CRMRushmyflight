@@ -53,6 +53,45 @@
         .pnr-status.is-error {
             color: #c62828;
         }
+
+    .pax-table-wrap {
+        overflow-x: auto;
+    }
+
+    .pax-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+        .pax-table th,
+        .pax-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .pax-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+    .pax-edit-table input,
+    .pax-edit-table select {
+        width: 100%;
+        min-width: 110px;
+    }
+
+    .pax-edit-table .dob-row {
+        display: flex;
+        gap: 4px;
+    }
+
+        .pax-edit-table .dob-row select {
+            min-width: 70px;
+        }
 </style>
 <nav class="breadcrumb">
     <a asp-controller="Home" asp-action="Index">Home</a>
@@ -165,72 +204,70 @@
             <span>Passenger Information</span>
             <button type="button" class="btn btn-sm section-btn" id="add-passenger">+ Add More</button>
         </header>
-        <div id="passenger-list">
-            @for (var i = 0; i < Model.Passengers.Count; i++)
-            {
-                <div class="passenger-block" data-index="@i">
-                    @if (i > 0)
+        <div class="pax-table-wrap">
+            <table class="pax-table pax-edit-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>First Name</th>
+                        <th>Middle Name</th>
+                        <th>Last Name</th>
+                        <th>Gender</th>
+                        <th>Date of Birth</th>
+                        <th>Ticket No.</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="passenger-list">
+                    @for (var i = 0; i < Model.Passengers.Count; i++)
                     {
-                        <div class="passenger-block-header">
-                            <strong>Passenger @(i + 1)</strong>
-                            <button type="button" class="btn btn-sm remove-passenger">Remove</button>
-                        </div>
+                        var p = Model.Passengers[i];
+                        <tr class="passenger-block">
+                            <td>
+                                <span class="pax-no">@(i + 1)</span>
+                                <input type="hidden" data-field="PassId" name="Passengers[@i].PassId" value="@p.PassId" />
+                            </td>
+                            <td><input data-field="FirstName" name="Passengers[@i].FirstName" value="@p.FirstName" /></td>
+                            <td><input data-field="MiddleName" name="Passengers[@i].MiddleName" value="@p.MiddleName" /></td>
+                            <td><input data-field="LastName" name="Passengers[@i].LastName" value="@p.LastName" /></td>
+                            <td>
+                                <select data-field="Gender" name="Passengers[@i].Gender">
+                                    <option value="">- Select -</option>
+                                    <option value="M" selected="@(p.Gender == "M")">Male</option>
+                                    <option value="F" selected="@(p.Gender == "F")">Female</option>
+                                </select>
+                            </td>
+                            <td>
+                                <div class="dob-row">
+                                    <select data-field="DobDay" name="Passengers[@i].DobDay">
+                                        <option value="">Day</option>
+                                        @foreach (var d in days)
+                                        {
+                                            <option value="@d" selected="@(p.DobDay == d)">@d</option>
+                                        }
+                                    </select>
+                                    <select data-field="DobMonth" name="Passengers[@i].DobMonth">
+                                        <option value="">Month</option>
+                                        @foreach (var m in months)
+                                        {
+                                            <option value="@m" selected="@(p.DobMonth == m)">@m</option>
+                                        }
+                                    </select>
+                                    <select data-field="DobYear" name="Passengers[@i].DobYear">
+                                        <option value="">Year</option>
+                                        @foreach (var y in years)
+                                        {
+                                            <option value="@y" selected="@(p.DobYear == y)">@y</option>
+                                        }
+                                    </select>
+                                </div>
+                            </td>
+                            <td><input data-field="TicketNo" name="Passengers[@i].TicketNo" value="@p.TicketNo" /></td>
+                            <td><button type="button" class="btn btn-sm remove-passenger">Remove</button></td>
+                        </tr>
                     }
-                    <div class="form-grid">
-                        <input type="hidden" name="Passengers[@i].PassId" value="@Model.Passengers[i].PassId" />
-                        <div class="form-field">
-                            <label>First Name</label>
-                            <input name="Passengers[@i].FirstName" value="@Model.Passengers[i].FirstName" />
-                        </div>
-                        <div class="form-field">
-                            <label>Middle Name</label>
-                            <input name="Passengers[@i].MiddleName" value="@Model.Passengers[i].MiddleName" />
-                        </div>
-                        <div class="form-field">
-                            <label>Last Name</label>
-                            <input name="Passengers[@i].LastName" value="@Model.Passengers[i].LastName" />
-                        </div>
-                        <div class="form-field">
-                            <label>Gender</label>
-                            <select name="Passengers[@i].Gender">
-                                <option value="">- Select -</option>
-                                <option value="M" selected="@(Model.Passengers[i].Gender == "M")">Male</option>
-                                <option value="F" selected="@(Model.Passengers[i].Gender == "F")">Female</option>
-                            </select>
-                        </div>
-                        <div class="form-field">
-                            <label>Date of Birth</label>
-                            <div class="dob-row">
-                                <select name="Passengers[@i].DobDay">
-                                    <option value="">Day</option>
-                                    @foreach (var d in days)
-                                    {
-                                        <option value="@d" selected="@(Model.Passengers[i].DobDay == d)">@d</option>
-                                    }
-                                </select>
-                                <select name="Passengers[@i].DobMonth">
-                                    <option value="">Month</option>
-                                    @foreach (var m in months)
-                                    {
-                                        <option value="@m" selected="@(Model.Passengers[i].DobMonth == m)">@m</option>
-                                    }
-                                </select>
-                                <select name="Passengers[@i].DobYear">
-                                    <option value="">Year</option>
-                                    @foreach (var y in years)
-                                    {
-                                        <option value="@y" selected="@(Model.Passengers[i].DobYear == y)">@y</option>
-                                    }
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-field">
-                            <label>Ticket No.</label>
-                            <input name="Passengers[@i].TicketNo" value="@Model.Passengers[i].TicketNo" />
-                        </div>
-                    </div>
-                </div>
-            }
+                </tbody>
+            </table>
         </div>
     </section>
 
@@ -541,56 +578,49 @@
     </form>
 }
 <template id="passenger-template">
-    <div class="passenger-block">
-        <div class="passenger-block-header">
-            <strong>Passenger</strong>
-            <button type="button" class="btn btn-sm remove-passenger">Remove</button>
-        </div>
-        <div class="form-grid">
+    <tr class="passenger-block">
+        <td>
+            <span class="pax-no"></span>
             <input type="hidden" data-field="PassId" value="0" />
-            <div class="form-field">
-                <label>First Name</label>
-                <input data-field="FirstName" />
-            </div>
-            <div class="form-field">
-                <label>Middle Name</label>
-                <input data-field="MiddleName" />
-            </div>
-            <div class="form-field">
-                <label>Last Name</label>
-                <input data-field="LastName" />
-            </div>
-            <div class="form-field">
-                <label>Gender</label>
-                <select data-field="Gender">
-                    <option value="">- Select -</option>
-                    <option value="M">Male</option>
-                    <option value="F">Female</option>
-                </select>
-            </div>
-            <div class="form-field">
-                <label>Date of Birth</label>
-                <div class="dob-row">
-                    <select data-field="DobDay"><option value="">Day</option>@foreach (var d in days) {
+        </td>
+        <td><input data-field="FirstName" /></td>
+        <td><input data-field="MiddleName" /></td>
+        <td><input data-field="LastName" /></td>
+        <td>
+            <select data-field="Gender">
+                <option value="">- Select -</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+            </select>
+        </td>
+        <td>
+            <div class="dob-row">
+                <select data-field="DobDay">
+                    <option value="">Day</option>
+                    @foreach (var d in days)
+                    {
                         <option value="@d">@d</option>
                     }
                 </select>
-                <select data-field="DobMonth"><option value="">Month</option>@foreach (var m in months) {
-                    <option value="@m">@m</option>
-                }
-            </select>
-            <select data-field="DobYear"><option value="">Year</option>@foreach (var y in years) {
-                <option value="@y">@y</option>
-            }
-        </select>
-    </div>
-</div>
-<div class="form-field">
-    <label>Ticket No.</label>
-    <input data-field="TicketNo" />
-</div>
-</div>
-</div>
+                <select data-field="DobMonth">
+                    <option value="">Month</option>
+                    @foreach (var m in months)
+                    {
+                        <option value="@m">@m</option>
+                    }
+                </select>
+                <select data-field="DobYear">
+                    <option value="">Year</option>
+                    @foreach (var y in years)
+                    {
+                        <option value="@y">@y</option>
+                    }
+                </select>
+            </div>
+        </td>
+        <td><input data-field="TicketNo" /></td>
+        <td><button type="button" class="btn btn-sm remove-passenger">Remove</button></td>
+    </tr>
 </template>
 
 @section Scripts {
@@ -601,36 +631,28 @@
             const template = document.getElementById('passenger-template');
             const addBtn = document.getElementById('add-passenger');
 
+            // Keeps indexes 0..n-1 with no gaps, otherwise model binding stops at the gap
             function reindexPassengers() {
-                list.querySelectorAll('.passenger-block').forEach((block, index) => {
-                    block.dataset.index = index;
-                    const header = block.querySelector('.passenger-block-header strong');
-                    if (header) header.textContent = 'Passenger ' + (index + 1);
+                list.querySelectorAll('.passenger-block').forEach((row, index) => {
+                    const no = row.querySelector('.pax-no');
+                    if (no) no.textContent = index + 1;
 
-                    block.querySelectorAll('[data-field]').forEach(el => {
-                        const field = el.dataset.field;
-                        el.name = 'Passengers[' + index + '].' + field;
-                    });
-
-                    block.querySelectorAll('input[type="hidden"][name^="Passengers"]').forEach(el => {
-                        if (!el.dataset.field) {
-                            el.name = 'Passengers[' + index + '].PassId';
-                        }
+                    row.querySelectorAll('[data-field]').forEach(el => {
+                        el.name = 'Passengers[' + index + '].' + el.dataset.field;
                     });
                 });
             }
 
             addBtn.addEventListener('click', function() {
-                const clone = template.content.cloneNode(true);
-                list.appendChild(clone);
+                list.appendChild(template.content.cloneNode(true));
                 reindexPassengers();
             });
 
             list.addEventListener('click', function(e) {
-                if (e.target.classList.contains('remove-passenger')) {
-                    e.target.closest('.passenger-block').remove();
-                    reindexPassengers();
-                }
+                if (!e.target.classList.contains('remove-passenger')) return;
+                if (list.querySelectorAll('.passenger-block').length === 1) return; // keep at least one row
+                e.target.closest('.passenger-block').remove();
+                reindexPassengers();
             });
         })();
     </script>

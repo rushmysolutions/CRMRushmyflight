@@ -6,6 +6,8 @@
     var uploadsBase = Url.Content("~/uploads/bookings/");
     var readOnly = ViewData["ReadOnly"] as bool? == true;
     var mask = CrmAccess.IsRestricted(User);
+    var currencyCode = FormatHelper.CurrencyCode(Model.Currency);
+
 }
 
 <style>
@@ -42,6 +44,29 @@
 
         .pnr-view .ql-ui {
             display: none;
+        }
+
+    .pax-table-wrap {
+        overflow-x: auto;
+    }
+
+    .pax-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+        .pax-table th,
+        .pax-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .pax-table th {
+            background: #f8fafc;
+            font-weight: 600;
         }
 </style>
 
@@ -150,47 +175,51 @@
     </section>
 
     <section class="form-section">
-        <header class="form-section-header">Passenger Information</header>
+        <header class="form-section-header">Passenger Information (@Model.Passengers.Count)</header>
         @if (Model.Passengers.Count == 0)
         {
             <p class="section-empty">No passengers recorded.</p>
         }
         else
         {
-            @foreach (var p in Model.Passengers)
-            {
-                <div class="passenger-block">
-                    <div class="form-grid">
-                        <div class="view-field">
-                            <label>First Name</label>
-                            <div class="view-value">@FormatHelper.Display(p.FirstName)</div>
-                        </div>
-                        <div class="view-field">
-                            <label>Middle Name</label>
-                            <div class="view-value">@FormatHelper.Display(p.MiddleName)</div>
-                        </div>
-                        <div class="view-field">
-                            <label>Last Name</label>
-                            <div class="view-value">@FormatHelper.Display(p.LastName)</div>
-                        </div>
-                        <div class="view-field">
-                            <label>Gender</label>
-                            <div class="view-value">@FormatHelper.Display(p.Gender)</div>
-                        </div>
-                        <div class="view-field">
-                            <label>Date of Birth</label>
-                            <div class="view-value">@FormatHelper.Display(p.Dob)</div>
-                        </div>
-                        <div class="view-field">
-                            <label>Ticket No.</label>
-                            <div class="view-value">@FormatHelper.Display(p.TicketNo)</div>
-                        </div>
-                    </div>
-                </div>
-            }
+            <div class="pax-table-wrap">
+                <table class="pax-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>First Name</th>
+                            <th>Middle Name</th>
+                            <th>Last Name</th>
+                            <th>Gender</th>
+                            <th>Date of Birth</th>
+                            <th>Ticket No.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < Model.Passengers.Count; i++)
+                        {
+                            var p = Model.Passengers[i];
+                            var gender = p.Gender?.Trim().ToUpperInvariant() switch
+                            {
+                                "M" => "Male",
+                                "F" => "Female",
+                                _ => p.Gender
+                            };
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>@FormatHelper.Display(p.FirstName)</td>
+                                <td>@FormatHelper.Display(p.MiddleName)</td>
+                                <td>@FormatHelper.Display(p.LastName)</td>
+                                <td>@FormatHelper.Display(gender)</td>
+                                <td>@FormatHelper.Display(p.Dob)</td>
+                                <td>@FormatHelper.Display(p.TicketNo)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </section>
-
     <section class="form-section">
         <header class="form-section-header">Billing Information</header>
         <div class="form-grid">
@@ -202,10 +231,27 @@
                 <label>Card Type</label>
                 <div class="view-value">@FormatHelper.CardTypeName(Model.PaymentMethod)</div>
             </div>
-            <div class="view-field span-2">
-                <label>Credit Card No</label>
-                <div class="view-value">@Model.CardNumberMasked</div>
-            </div>
+            @if (mask == true)
+            {
+                <div class="view-field">
+                    <label>Card Number</label>
+                    <div class="view-value">@FormatHelper.SensitiveMask.CardLastFour(Model.CardNumberMasked)</div>
+                </div>
+               
+            }
+            else
+            {
+                <div class="view-field">
+                    <label>Card Number</label>
+                    <div class="view-value">@FormatHelper.Display(Model.CardNumberAdmin)</div>
+                </div>
+            }
+            
+
+            @* <div class="view-field">
+                <label>Inbound No.</label>
+                <div class="view-value">@(mask ? SensitiveMask.Value(Model.InboundPhone) : FormatHelper.Display(Model.InboundPhone))</div>
+            </div> *@
             <div class="view-field">
                 <label>Expiration Date</label>
                 <div class="view-value">@FormatHelper.Display(Model.ExpiryDate)</div>
@@ -268,7 +314,7 @@
             </div>
             <div class="view-field">
                 <label>Class of Booking</label>
-                <div class="view-value">@FormatHelper.Display(Model.ClassType)</div>
+                <div class="view-value">@FormatHelper.Display(FormatHelper.ClassTypeName(Model.ClassType))</div>
             </div>
             <div class="view-field">
                 <label>Supplier</label>
@@ -286,23 +332,27 @@
         <div class="form-grid">
             <div class="view-field">
                 <label>MCO</label>
-                <div class="view-value">@FormatHelper.Money(Model.McoAmount, Model.Currency)</div>
+                <div class="view-value">@FormatHelper.Money(Model.McoAmount, currencyCode)</div>
             </div>
             <div class="view-field">
                 <label>Total</label>
-                <div class="view-value">@FormatHelper.Money(Model.TotalAmount, Model.Currency)</div>
+                <div class="view-value">@FormatHelper.Money(Model.TotalAmount, currencyCode)</div>
             </div>
             <div class="view-field">
                 <label>Net MCO</label>
-                <div class="view-value">@FormatHelper.Money(Model.NetMco, Model.Currency)</div>
+                <div class="view-value">@FormatHelper.Money(Model.NetMco, currencyCode)</div>
             </div>
             <div class="view-field">
                 <label>Split Charges</label>
-                <div class="view-value">@FormatHelper.Display(Model.SplitCharges)</div>
+                <div class="view-value">@(string.Equals(Model.SplitCharges, "yes", StringComparison.OrdinalIgnoreCase) ? "Yes" : "No")</div>
             </div>
             <div class="view-field">
                 <label>MCO Supplier &amp; Mail From</label>
-                <div class="view-value">@FormatHelper.Display(Model.McoSupplier)</div>
+                <div class="view-value">
+                    @(Model.McoSupplierName is null
+                        ? FormatHelper.Display(Model.McoSupplier)
+                        : $"{Model.McoSupplierName} ({Model.McoSupplierFromEmail})")
+                </div>
             </div>
             <div class="view-field">
                 <label>MCO Status</label>
@@ -318,7 +368,7 @@
             </div>
             <div class="view-field">
                 <label>Currency</label>
-                <div class="view-value">@FormatHelper.Display(Model.Currency)</div>
+                <div class="view-value">@currencyCode</div>
             </div>
         </div>
     </section>
@@ -336,6 +386,55 @@
             </div>
         </div>
     </section>
+
+    <section class="form-section">
+        <header class="form-section-header">Upload Images / Documents</header>
+        <div class="section-body">
+            @if (Model.Attachments.Count == 0)
+            {
+                <p class="section-empty">No files uploaded yet.</p>
+            }
+            else
+            {
+                <div class="attachment-gallery">
+                    @foreach (var file in Model.Attachments)
+                    {
+                        <div class="attachment-item">
+                            @if (file.IsImage)
+                            {
+                                <a class="attachment-thumb" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                    <img src="@($"{uploadsBase}{file.FileName}")"
+                                         alt="@file.DisplayName"
+                                         onerror="this.closest('.attachment-thumb').classList.add('broken-image')" />
+                                </a>
+                            }
+                            else
+                            {
+                                <a class="attachment-file" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                    <span class="file-icon">📄</span>
+                                </a>
+                            }
+                            <a class="attachment-name" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
+                                @(file.DisplayName ?? file.FileName)
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+
+            <form class="upload-inline-form" method="post" asp-action="UploadAttachment" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.BookId" />
+                <input type="hidden" name="returnTo" value="details" />
+                <div class="form-field">
+                    <label>Upload new image or document</label>
+                    <input type="file" name="files" multiple accept="image/*,.pdf,.png,.jpg,.jpeg,.gif,.webp" required />
+                </div>
+                <button type="submit" class="btn primary">Upload</button>
+            </form>
+        </div>
+    </section>
+
 
     <section class="form-section">
         <header class="form-section-header">Customer Submitted Information</header>
@@ -395,53 +494,6 @@
         </div>
     </section>
 
-    <section class="form-section">
-        <header class="form-section-header">Upload Images / Documents</header>
-        <div class="section-body">
-            @if (Model.Attachments.Count == 0)
-            {
-                <p class="section-empty">No files uploaded yet.</p>
-            }
-            else
-            {
-                <div class="attachment-gallery">
-                    @foreach (var file in Model.Attachments)
-                    {
-                        <div class="attachment-item">
-                            @if (file.IsImage)
-                            {
-                                <a class="attachment-thumb" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
-                                    <img src="@($"{uploadsBase}{file.FileName}")"
-                                         alt="@file.DisplayName"
-                                         onerror="this.closest('.attachment-thumb').classList.add('broken-image')" />
-                                </a>
-                            }
-                            else
-                            {
-                                <a class="attachment-file" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
-                                    <span class="file-icon">📄</span>
-                                </a>
-                            }
-                            <a class="attachment-name" asp-action="DownloadAttachment" asp-route-file="@file.FileName" target="_blank">
-                                @(file.DisplayName ?? file.FileName)
-                            </a>
-                        </div>
-                    }
-                </div>
-            }
-
-            <form class="upload-inline-form" method="post" asp-action="UploadAttachment" enctype="multipart/form-data">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="id" value="@Model.BookId" />
-                <input type="hidden" name="returnTo" value="details" />
-                <div class="form-field">
-                    <label>Upload new image or document</label>
-                    <input type="file" name="files" multiple accept="image/*,.pdf,.png,.jpg,.jpeg,.gif,.webp" required />
-                </div>
-                <button type="submit" class="btn primary">Upload</button>
-            </form>
-        </div>
-    </section>
 
     <section class="form-section">
         <div class="">

@@ -24,6 +24,22 @@ public static class FormatHelper
         "4" => "Discover",
         _ => Display(code)
     };
+    public static string CurrencyCode(string? value) => value?.Trim() switch
+    {
+        null or "" or "0" => "USD",
+        "1" => "CAD",
+        var v => v.ToUpperInvariant()
+    };
+
+    public static string? ClassTypeName(string? value) => value?.Trim().ToUpperInvariant() switch
+    {
+        null or "" => null,
+        "Y" or "ECONOMY" => "Economy",
+        "S" or "W" or "PREMIUM ECONOMY" => "Premium Economy",
+        "C" or "J" or "BUSINESS" => "Business",
+        "F" or "FIRST" => "First",
+        _ => value
+    };
 
     public static string LanguageName(int lang) => lang switch
     {
