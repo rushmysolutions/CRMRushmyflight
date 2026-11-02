@@ -292,7 +292,7 @@
                 <label>Credit Card No</label>
                 @if (maskSensitive)
                 {
-                    <input value="@SensitiveMask.CardLastFour(Model.CardNumber)" class="ref-readonly" readonly />
+                    <input value="@FormatHelper.Display(Model.CardNumber)" class="ref-readonly" readonly />
                 }
                 else
                 {
