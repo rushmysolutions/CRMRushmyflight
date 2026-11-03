@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml.VariantTypes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using RushMyBookings.Crm.Data;
@@ -377,20 +378,22 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             userLookup.TryGetValue(booking.FollowUpBy.Value, out followUpByName);
         }
 
-        var passengers = await db.Passengers.AsNoTracking()
-            .Where(p => p.BookingId == bookId)
-            .OrderBy(p => p.PassId)
-            .Select(p => new PassengerInfo
-            {
-                PassId = p.PassId,
-                FirstName = p.FirstName,
-                MiddleName = p.MiddleName,
-                LastName = p.LastName,
-                Dob = p.Dob,
-                Gender = p.Gender,
-                TicketNo = p.TicketNo
-            })
-            .ToListAsync();
+        var passengerRows = await db.Passengers.AsNoTracking()
+     .Where(p => p.BookingId == bookId)
+     .OrderBy(p => p.PassId)
+     .Select(p => new PassengerInfo
+     {
+         PassId = p.PassId,
+         FirstName = p.FirstName,
+         MiddleName = p.MiddleName,
+         LastName = p.LastName,
+         Dob = p.Dob,
+         Gender = p.Gender,
+         TicketNo = p.TicketNo
+     })
+     .ToListAsync();
+
+        var passengers = passengerRows.SelectMany(SplitLegacy).ToList();
 
         var bookIdKey = bookId.ToString();
         var commentCount = await db.Comments.AsNoTracking()
@@ -432,7 +435,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             Pnr = booking.Pnr,
             TicketStatus = booking.TicketStatus,
             TotalAmount = booking.TotalAmount,
-            Currency = booking.Currency,
+            Currency = FormatHelper.CurrencyCode(booking.Currency),
             CreatedDate = booking.CreatedDate,
             TravelDate = booking.TravelDate,
             ReturnDate = booking.ReturnDate,
@@ -457,13 +460,15 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             PartialRefund = booking.PartialRefund,
             SplitCharges = booking.SplitCharges,
             PaymentUrl = booking.PaymentUrl,
-            ClassType = booking.ClassType,
+            ClassType = FormatHelper.ClassTypeName(booking.ClassType),
             BookingLang = booking.BookingLang,
             CustomEmailSubject = booking.CustomEmailSubject,
             Tfn = booking.TravelPhoneNumber,
             CardHolderName = booking.CardHolderName ?? booking.CustomerName,
             CardNumber = DecryptCard(booking.CardNumber),
             CardNumberMasked = FormatHelper.MaskCard(booking.CardNumber, booking.LastFourCardDigits),
+            CardNumberAdmin = booking.CardNumber,
+
             ExpiryDate = booking.ExpiryDate,
             InboundPhone = booking.InboundPhone,
             BillingAddress = booking.Address,
@@ -486,7 +491,54 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             McoSupplierFromEmail = mcoSupplier?.FromEmail,
         };
     }
+    static IEnumerable<PassengerInfo> SplitLegacy(PassengerInfo p)
+    {
+        const string Separator = "~!";
 
+        static string[] Parts(string? v) =>
+            (v ?? "").Split(Separator).Select(s => s.Trim()).ToArray();
+
+        static string? At(string[] a, int i) =>
+            i < a.Length && a[i].Length > 0 ? a[i] : null;
+
+        var first = Parts(p.FirstName);
+        var middle = Parts(p.MiddleName);
+        var last = Parts(p.LastName);
+        var dob = Parts(p.Dob);
+        var gender = Parts(p.Gender);
+        var ticket = Parts(p.TicketNo);
+
+        // New CRM rows have no separator: return them unchanged
+        var isLegacy = new[] { p.FirstName, p.MiddleName, p.LastName, p.Dob, p.Gender, p.TicketNo }
+            .Any(v => v?.Contains(Separator) == true);
+        if (!isLegacy)
+        {
+            yield return p;
+            yield break;
+        }
+
+        var count = new[] { first, middle, last, dob, gender, ticket }.Max(a => a.Length);
+
+        for (var i = 0; i < count; i++)
+        {
+            var firstName = At(first, i);
+            var lastName = At(last, i);
+
+            // Trailing "~!" creates empty slots; a passenger needs at least a name
+            if (firstName is null && lastName is null) continue;
+
+            yield return new PassengerInfo
+            {
+                PassId = p.PassId,
+                FirstName = firstName,
+                MiddleName = At(middle, i),
+                LastName = lastName,
+                Dob = At(dob, i),
+                Gender = At(gender, i),
+                TicketNo = At(ticket, i)
+            };
+        }
+    }
     private static IEnumerable<string> ParseAttachmentFileNames(string? attachFiles)
     {
         if (string.IsNullOrWhiteSpace(attachFiles))
@@ -864,11 +916,22 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         {
             return null;
         }
-
-        var passengers = await db.Passengers.AsNoTracking()
-            .Where(p => p.BookingId == bookId)
-            .OrderBy(p => p.PassId)
-            .ToListAsync();
+        var passengers = (await db.Passengers.AsNoTracking()
+                .Where(p => p.BookingId == bookId)
+                .OrderBy(p => p.PassId)
+                .Select(p => new PassengerInfo
+                {
+                    PassId = p.PassId,
+                    FirstName = p.FirstName,
+                    MiddleName = p.MiddleName,
+                    LastName = p.LastName,
+                    Dob = p.Dob,
+                    Gender = p.Gender,
+                    TicketNo = p.TicketNo
+                })
+                .ToListAsync())
+            .SelectMany(SplitLegacy)
+            .ToList();
 
         var bookingTypes = await GetBookingTypesAsync();
 
@@ -928,7 +991,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             ZipCode = booking.Zip,
             AirlineConfirmation = booking.Pnr,
             TicketStatus = booking.TicketStatus ?? "0",
-            ClassType = booking.ClassType,
+            ClassType = FormatHelper.ClassTypeName(booking.ClassType),
             Supplier = booking.Supplier,
             TicketCost = booking.TicketCost,
             AirlineName = booking.Airline,
@@ -939,7 +1002,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             McoStatus = booking.McoStatus ?? "0",
             PartialRefund = booking.PartialRefund,
             NetMco = booking.NetMco.ToString("0.##"),
-            Currency = booking.Currency,
+            Currency = FormatHelper.CurrencyCode(booking.Currency),
             PaymentUrl = booking.PaymentUrl,
             PaymentMode = booking.PaymentMode,
             BookingTypes = bookingTypes,
