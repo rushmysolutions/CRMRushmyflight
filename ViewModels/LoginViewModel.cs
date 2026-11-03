@@ -20,5 +20,8 @@ public sealed class LoginViewModel
     [Display(Name = "Remember me")]
     public bool RememberMe { get; set; }
 
+    /// <summary>True when signing in from the installed desktop app.</summary>
+    public bool InstalledApp { get; set; }
+
     public string? ReturnUrl { get; set; }
 }

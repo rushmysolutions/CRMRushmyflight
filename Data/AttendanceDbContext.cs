@@ -18,6 +18,7 @@ public class AttendanceDbContext(DbContextOptions<AttendanceDbContext> options) 
     public DbSet<TeamSchedule> TeamSchedules => Set<TeamSchedule>();
     public DbSet<EmployeeSchedule> EmployeeSchedules => Set<EmployeeSchedule>();
     public DbSet<RosterEntry> RosterEntries => Set<RosterEntry>();
+    public DbSet<PushSubscriptionRecord> PushSubscriptions => Set<PushSubscriptionRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -182,6 +183,21 @@ public class AttendanceDbContext(DbContextOptions<AttendanceDbContext> options) 
                 .WithMany()
                 .HasForeignKey(x => x.ShiftId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PushSubscriptionRecord>(e =>
+        {
+            e.ToTable("PushSubscriptions");
+            e.HasKey(x => x.PushSubscriptionId);
+            e.Property(x => x.Endpoint).IsRequired().HasMaxLength(500);
+            e.Property(x => x.P256dh).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Auth).IsRequired().HasMaxLength(100);
+            e.HasIndex(x => x.Endpoint).IsUnique();
+            e.HasIndex(x => x.EmployeeId);
+            e.HasOne(x => x.Employee)
+                .WithMany()
+                .HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -19,8 +19,9 @@
         </div>
     </div>
 
-    <form asp-action="Login" method="post">
+    <form asp-action="Login" method="post" id="loginForm">
         <input type="hidden" asp-for="ReturnUrl" />
+        <input type="hidden" asp-for="InstalledApp" id="installedApp" />
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
 
         <label asp-for="Portal"></label>
@@ -36,10 +37,13 @@
         <label asp-for="Password"></label>
         <input asp-for="Password" autocomplete="current-password" placeholder="Password" />
 
-        <label class="remember">
-            <input asp-for="RememberMe" />
+        <label class="remember" id="rememberRow">
+            <input asp-for="RememberMe" id="rememberMe" />
             <span asp-for="RememberMe"></span>
         </label>
+        <p class="login-install-note" id="installStayNote" hidden>
+            Installed app — you’ll stay signed in until you sign out.
+        </p>
 
         <button type="submit" class="primary login-btn">Sign in</button>
     </form>
@@ -48,4 +52,23 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var installed = window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true;
+            if (!installed) return;
+
+            var flag = document.getElementById('installedApp');
+            if (flag) flag.value = 'true';
+
+            var rem = document.getElementById('rememberMe');
+            if (rem) rem.checked = true;
+
+            var row = document.getElementById('rememberRow');
+            if (row) row.hidden = true;
+
+            var note = document.getElementById('installStayNote');
+            if (note) note.hidden = false;
+        })();
+    </script>
 }

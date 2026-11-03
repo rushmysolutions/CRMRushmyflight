@@ -167,10 +167,25 @@
             {
                 <p class="muted">Not marked</p>
             }
-            @if (mark.HasOptedIn)
-            {
-                <p class="muted">Opted in@(mark.HasOptedOut ? " and out" : " (no opt-out — counts as Half Day after the day ends)") for this day.</p>
-            }
+
+            <div class="day-summary">
+                <div class="summary-title">
+                    <i class="fa-regular fa-calendar-check"></i>
+                    Day summary
+                </div>
+                <div class="summary-row">
+                    <span><i class="fa-solid fa-right-to-bracket"></i> Opt-in</span>
+                    <strong>@(mark.OptInTime is TimeSpan tin ? AttendanceClock.FormatTime(tin) : "—")</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="fa-solid fa-right-from-bracket"></i> Opt-out</span>
+                    <strong>@(mark.OptOutTime is TimeSpan tout ? AttendanceClock.FormatTime(tout) : "—")</strong>
+                </div>
+                @if (mark.HasOptedIn && !mark.HasOptedOut)
+                {
+                    <p class="muted" style="margin-top:12px;">No opt-out — counts as Half Day after the day ends.</p>
+                }
+            </div>
         }
         else
         {
@@ -243,7 +258,6 @@
             </div>
 
             <div class="day-summary">
-
                 <div class="summary-title">
                     <i class="fa-regular fa-calendar-check"></i>
                     Today's Summary
@@ -259,10 +273,18 @@
 
                 <div class="summary-row">
                     <span>
-                        <i class="fa-solid fa-location-dot"></i>
-                        Work Mode
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        Opt-in
                     </span>
-                    <strong>Office</strong>
+                    <strong>@(mark.OptInTime is TimeSpan tin ? AttendanceClock.FormatTime(tin) : "—")</strong>
+                </div>
+
+                <div class="summary-row">
+                    <span>
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        Opt-out
+                    </span>
+                    <strong>@(mark.OptOutTime is TimeSpan tout ? AttendanceClock.FormatTime(tout) : "—")</strong>
                 </div>
 
                 <div class="summary-row">
@@ -270,9 +292,15 @@
                         <i class="fa-solid fa-circle-check"></i>
                         Attendance
                     </span>
-                    <strong class="status-pending">Not marked</strong>
+                    @if (mark.HasOptedIn || !string.IsNullOrEmpty(mark.Status))
+                    {
+                        <strong>@StatusLabel(string.IsNullOrEmpty(mark.Status) ? "Present" : mark.Status)</strong>
+                    }
+                    else
+                    {
+                        <strong class="status-pending">Not marked</strong>
+                    }
                 </div>
-
             </div>
         }
 

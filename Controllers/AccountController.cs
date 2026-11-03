@@ -81,7 +81,7 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
                     return View(model);
             }
 
-            await SignInCrmUserAsync(result.User!, model.RememberMe);
+            await SignInCrmUserAsync(result.User!, model.RememberMe, model.InstalledApp);
             return RedirectToLocal(model.ReturnUrl, preferAttendance: false);
         }
         catch (DbUpdateException ex) when (ex.InnerException is MySqlException mysql)
@@ -119,7 +119,7 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
                 return View(model);
             }
 
-            await SignInAttendanceEmployeeAsync(employee, model.RememberMe);
+            await SignInAttendanceEmployeeAsync(employee, model.RememberMe, model.InstalledApp);
             return RedirectToLocal(model.ReturnUrl, preferAttendance: true);
         }
         catch (Exception ex)
@@ -131,7 +131,10 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
         }
     }
 
-    private async Task SignInAttendanceEmployeeAsync(Entities.Attendance.Employee employee, bool rememberMe)
+    private async Task SignInAttendanceEmployeeAsync(
+        Entities.Attendance.Employee employee,
+        bool rememberMe,
+        bool installedApp = false)
     {
         var claims = BuildAttendanceClaims(employee);
         claims.Add(new Claim(AttendanceClaimTypes.LoginPortal, LoginPortals.Internal));
@@ -142,10 +145,10 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
         claims.Add(new Claim(ClaimTypes.Surname, employee.LastName ?? string.Empty));
         claims.Add(new Claim(ClaimTypes.Email, employee.Email));
 
-        await SignInWithClaimsAsync(claims, rememberMe);
+        await SignInWithClaimsAsync(claims, rememberMe, installedApp);
     }
 
-    private async Task SignInCrmUserAsync(Models.UserAccount user, bool rememberMe)
+    private async Task SignInCrmUserAsync(Models.UserAccount user, bool rememberMe, bool installedApp = false)
     {
         var claims = new List<Claim>
         {
@@ -158,7 +161,7 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
             new(AttendanceClaimTypes.LoginPortal, LoginPortals.Crm)
         };
 
-        await SignInWithClaimsAsync(claims, rememberMe);
+        await SignInWithClaimsAsync(claims, rememberMe, installedApp);
     }
 
     private static List<Claim> BuildAttendanceClaims(Entities.Attendance.Employee employee)
@@ -177,19 +180,22 @@ public class AccountController(ICrmDataService dataService, IAttendanceService a
         return claims;
     }
 
-    private async Task SignInWithClaimsAsync(List<Claim> claims, bool rememberMe)
+    private async Task SignInWithClaimsAsync(List<Claim> claims, bool rememberMe, bool installedApp = false)
     {
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
+
+        // Installed app: stay signed in until they hit Sign out themselves.
+        var staySignedIn = rememberMe || installedApp;
 
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             principal,
             new AuthenticationProperties
             {
-                IsPersistent = rememberMe,
-                ExpiresUtc = rememberMe
-                    ? DateTimeOffset.UtcNow.AddDays(14)
+                IsPersistent = staySignedIn,
+                ExpiresUtc = staySignedIn
+                    ? DateTimeOffset.UtcNow.AddYears(1)
                     : DateTimeOffset.UtcNow.AddHours(8)
             });
     }

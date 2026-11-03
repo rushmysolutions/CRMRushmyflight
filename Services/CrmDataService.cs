@@ -794,10 +794,10 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             CreatedDate = createdDate,
             PaymentMethod = model.CardType,
             CardHolderName = model.CardHolderName,
-            CardNumber = model.CardNumber,
+            CardNumber = CardCrypto.EncryptCardNumber(model.CardNumber),
             LastFourCardDigits = lastFour,
             ExpiryDate = model.ExpiryDate,
-            Cvv = model.Cvv,
+            Cvv = CardCrypto.EncryptCvv(model.Cvv),
             Address = model.BillingAddress,
             Zip = model.ZipCode,
             Pnr = model.AirlineConfirmation,
@@ -996,12 +996,15 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
 
         if (!string.IsNullOrWhiteSpace(model.CardNumber) && !model.CardNumber.Contains('•'))
         {
-            booking.CardNumber = model.CardNumber;
+            booking.CardNumber = CardCrypto.EncryptCardNumber(model.CardNumber);
             booking.LastFourCardDigits = lastFour;
         }
 
         booking.ExpiryDate = model.ExpiryDate;
-        booking.Cvv = model.Cvv;
+        if (!string.IsNullOrWhiteSpace(model.Cvv) && !model.Cvv.Contains('•'))
+        {
+            booking.Cvv = CardCrypto.EncryptCvv(model.Cvv);
+        }
         booking.Address = model.BillingAddress;
         booking.Zip = model.ZipCode;
         booking.Pnr = model.AirlineConfirmation;

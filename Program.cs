@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using RushMyBookings.Crm.Data;
 using RushMyBookings.Crm.Middleware;
@@ -16,7 +17,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/Account/Login";
         options.LogoutPath = "/Account/Logout";
         options.AccessDeniedPath = "/Account/Login";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        // Long enough for installed-app "stay signed in"; each SignIn still sets ExpiresUtc.
+        options.ExpireTimeSpan = TimeSpan.FromDays(365);
         options.SlidingExpiration = true;
     });
 
@@ -50,8 +52,11 @@ builder.Services.AddScoped<ICrmDataService, CrmDataService>();
 builder.Services.AddScoped<IBookingFileService, BookingFileService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IIpAccessService, IpAccessService>();
+builder.Services.Configure<VapidOptions>(builder.Configuration.GetSection(VapidOptions.SectionName));
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddHostedService<DatabaseWarmupHostedService>();
 builder.Services.AddHostedService<AttendanceAutoLockHostedService>();
+builder.Services.AddHostedService<LoginReminderHostedService>();
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
     o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -70,7 +75,18 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+var contentTypes = new FileExtensionContentTypeProvider();
+contentTypes.Mappings[".webmanifest"] = "application/manifest+json";
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = contentTypes,
+    OnPrepareResponse = ctx =>
+    {
+        // Don't let browsers keep an old service worker forever
+        if (string.Equals(ctx.File.Name, "sw.js", StringComparison.OrdinalIgnoreCase))
+            ctx.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
 app.UseRouting();
 app.UseForwardedHeaders();
 app.UseAuthentication();

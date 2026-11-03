@@ -3,7 +3,11 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ed4214" />
     <title>@ViewData["Title"] - Rush My Bookings CRM</title>
+    <link rel="manifest" href="~/manifest.webmanifest" asp-append-version="true" />
+    <link rel="icon" type="image/png" href="~/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="~/icons/icon-192.png" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
@@ -158,6 +162,26 @@
             }
         </aside>
         <main class="content">
+            <div id="pwaInstallBanner" class="pwa-banner" hidden>
+                <div class="pwa-banner-copy">
+                    <strong>Install Rush My Bookings</strong>
+                    <span>Add the app to your desktop for faster access.</span>
+                </div>
+                <div class="pwa-banner-actions">
+                    <button type="button" class="btn primary" id="pwaInstallBtn">Install</button>
+                    <button type="button" class="btn" id="pwaInstallDismiss">Not now</button>
+                </div>
+            </div>
+            <div id="pwaNotifyBanner" class="pwa-banner pwa-banner-notify" hidden>
+                <div class="pwa-banner-copy">
+                    <strong>Turn on shift reminders</strong>
+                    <span>We’ll notify you at login time and again when it’s time to log out.</span>
+                </div>
+                <div class="pwa-banner-actions">
+                    <button type="button" class="btn primary" id="pwaNotifyBtn">Enable</button>
+                    <button type="button" class="btn" id="pwaNotifyDismiss">Not now</button>
+                </div>
+            </div>
             @RenderBody()
         </main>
     </div>
@@ -193,6 +217,7 @@
             });
         })();
     </script>
+    <script src="~/js/pwa.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

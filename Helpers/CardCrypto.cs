@@ -45,6 +45,63 @@ public static class CardCrypto
     }
 
     /// <summary>
+    /// Store card like legacy PHP: base64(plain) then AES-128-CTR (base64 ciphertext).
+    /// </summary>
+    public static string? EncryptCardNumber(string? plain)
+    {
+        if (string.IsNullOrWhiteSpace(plain))
+        {
+            return plain;
+        }
+
+        var trimmed = plain.Trim();
+        // Already ciphertext — don't double-encrypt
+        if (!LooksLikePlainSensitive(trimmed))
+        {
+            return trimmed;
+        }
+
+        var inner = Convert.ToBase64String(Encoding.UTF8.GetBytes(trimmed));
+        return EncryptOpenSsl(inner);
+    }
+
+    /// <summary>
+    /// Store CVV like legacy PHP: AES-128-CTR only (base64 ciphertext).
+    /// </summary>
+    public static string? EncryptCvv(string? plain)
+    {
+        if (string.IsNullOrWhiteSpace(plain))
+        {
+            return plain;
+        }
+
+        var trimmed = plain.Trim();
+        if (!LooksLikePlainSensitive(trimmed))
+        {
+            return trimmed;
+        }
+
+        return EncryptOpenSsl(trimmed);
+    }
+
+    /// <summary>
+    /// openssl_encrypt(..., AES-128-CTR, key, options=0, iv) — returns base64 ciphertext.
+    /// </summary>
+    private static string EncryptOpenSsl(string plain)
+    {
+        var key = BuildAes128Key(CipherKey);
+        var iv = Encoding.UTF8.GetBytes(CipherIv);
+        if (iv.Length != 16)
+        {
+            throw new InvalidOperationException("AES-128-CTR IV must be 16 bytes.");
+        }
+
+        var plainBytes = Encoding.UTF8.GetBytes(plain);
+        var cipherBytes = AesCtrXor(key, iv, plainBytes);
+        return Convert.ToBase64String(cipherBytes);
+    }
+
+    /// <summary>
     /// openssl_decrypt(..., AES-128-CTR, key, options=0, iv) — ciphertext is base64 by default.
     /// </summary>
     private static string? DecryptOpenSsl(string? stored)

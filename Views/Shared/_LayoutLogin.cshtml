@@ -3,11 +3,19 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ed4214" />
     <title>@ViewData["Title"] - Rush My Bookings CRM</title>
+    <link rel="manifest" href="~/manifest.webmanifest" asp-append-version="true" />
+    <link rel="icon" type="image/png" sizes="192x192" href="~/icons/icon-192.png" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="login-body">
     @RenderBody()
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(function () {});
+        }
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
