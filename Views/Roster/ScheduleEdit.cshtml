@@ -60,6 +60,17 @@
                     so they can all opt in / opt out at any time.
                 </p>
             </div>
+            <div class="form-field">
+                <label class="remember">
+                    <input asp-for="EarlyMorningPreviousDay" />
+                    <span><strong>Before 4:00 AM counts as the previous day</strong></span>
+                </label>
+                <p class="muted" style="margin:6px 0 0;">
+                    Use this for a shift that starts at midnight. Opt-in / opt-out from 12:00 AM to 3:59 AM
+                    is saved on yesterday. A night shift that already crosses midnight (for example 22:00–07:00)
+                    still follows its own end time.
+                </p>
+            </div>
         }
         else if (Model.NoFixedShift)
         {

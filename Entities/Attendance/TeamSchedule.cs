@@ -17,6 +17,12 @@ public class TeamSchedule
     /// <summary>See <see cref="Helpers.WeekOffDays"/> bit flags. Default Sat+Sun.</summary>
     public byte WeekOffMask { get; set; } = 96; // Saturday | Sunday
 
+    /// <summary>
+    /// When true, a punch from 12:00 AM until 4:00 AM is saved on the previous day.
+    /// Overnight shifts (end before start) still follow their own end time.
+    /// </summary>
+    public bool EarlyMorningPreviousDay { get; set; }
+
     public Team? Team { get; set; }
 
     public ShiftTemplate? Shift { get; set; }

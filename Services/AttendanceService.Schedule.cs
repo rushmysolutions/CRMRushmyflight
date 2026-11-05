@@ -159,6 +159,7 @@ public partial class AttendanceService
             Title = $"Team schedule — {team.Name}",
             ShiftId = row?.ShiftId,
             NoFixedShift = row?.IsFlexibleTiming ?? false,
+            EarlyMorningPreviousDay = row?.EarlyMorningPreviousDay ?? false,
             InheritShift = false,
             InheritWeekOff = false,
             OffMon = WeekOffDays.IsOff(mask, DayOfWeek.Monday),
@@ -198,6 +199,11 @@ public partial class AttendanceService
             ? model.NoFixedShift
             : row?.IsFlexibleTiming ?? false;
 
+        // Same roles as flexible timing. Other users keep the saved value.
+        var earlyMorning = canSetFlexibleTiming
+            ? model.EarlyMorningPreviousDay
+            : row?.EarlyMorningPreviousDay ?? false;
+
         // Flexible team has no shift timing at all — clear it so nothing blocks punches.
         int? shiftId = flexible ? null : model.ShiftId;
 
@@ -208,6 +214,7 @@ public partial class AttendanceService
                 TeamId = model.TeamId.Value,
                 ShiftId = shiftId,
                 IsFlexibleTiming = flexible,
+                EarlyMorningPreviousDay = earlyMorning,
                 WeekOffMask = mask
             });
         }
@@ -215,6 +222,7 @@ public partial class AttendanceService
         {
             row.ShiftId = shiftId;
             row.IsFlexibleTiming = flexible;
+            row.EarlyMorningPreviousDay = earlyMorning;
             row.WeekOffMask = mask;
         }
 
@@ -379,10 +387,13 @@ public partial class AttendanceService
             ?? teamSched?.WeekOffMask
             ?? WeekOffDays.Weekend;
 
+        var earlyMorning = teamSched?.EarlyMorningPreviousDay == true;
+
         var attendanceDate = AttendanceClock.GetAttendanceDate(
             now,
             shift?.StartTime,
-            shift?.EndTime);
+            shift?.EndTime,
+            earlyMorning);
 
         // Roster one-off for that attendance date (future week-off / forced work).
         var roster = await db.RosterEntries.AsNoTracking()
@@ -397,7 +408,8 @@ public partial class AttendanceService
                 shift = await db.ShiftTemplates.AsNoTracking()
                     .FirstOrDefaultAsync(s => s.ShiftId == rosterShiftId)
                     ?? shift;
-                attendanceDate = AttendanceClock.GetAttendanceDate(now, shift?.StartTime, shift?.EndTime);
+                attendanceDate = AttendanceClock.GetAttendanceDate(
+                    now, shift?.StartTime, shift?.EndTime, earlyMorning);
             }
         }
         else
@@ -434,7 +446,8 @@ public partial class AttendanceService
             ShiftEnd = shift?.EndTime,
             IsWeekOff = isWeekOff,
             WeekOffMask = weekOffMask,
-            IsFlexibleTiming = isFlexible
+            IsFlexibleTiming = isFlexible,
+            EarlyMorningPreviousDay = earlyMorning
         };
     }
 

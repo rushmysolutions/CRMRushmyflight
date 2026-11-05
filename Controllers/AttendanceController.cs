@@ -113,7 +113,7 @@ public class AttendanceController(IAttendanceService attendance) : Controller
         var result = await attendance.ToggleOptInOutAsync(employeeId, status);
         TempData[result.Ok ? "AttendanceSuccess" : "AttendanceError"] = result.Message;
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = (await attendance.ResolveWorkDayAsync(employeeId)).AttendanceDate;
         return RedirectToAction(nameof(Index), new
         {
             year = today.Year,

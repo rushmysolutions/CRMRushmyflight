@@ -10,26 +10,39 @@ namespace RushMyBookings.Crm.Helpers;
 /// </summary>
 public static class AttendanceClock
 {
-    public static DateOnly GetAttendanceDate(DateTime now, TimeSpan? shiftStart, TimeSpan? shiftEnd)
+    /// <summary>Optional team rule: punches before this time belong to the previous day.</summary>
+    public static readonly TimeSpan EarlyMorningCutoff = TimeSpan.FromHours(4);
+
+    public static DateOnly GetAttendanceDate(
+        DateTime now,
+        TimeSpan? shiftStart,
+        TimeSpan? shiftEnd,
+        bool earlyMorningPreviousDay = false)
     {
+        var today = DateOnly.FromDateTime(now);
+        var clock = now.TimeOfDay;
+
         if (shiftStart is null || shiftEnd is null)
         {
-            return DateOnly.FromDateTime(now);
-        }
+            if (earlyMorningPreviousDay && clock < EarlyMorningCutoff)
+            {
+                return today.AddDays(-1);
+            }
 
-        var start = shiftStart.Value;
-        var end = shiftEnd.Value;
-        var crossesMidnight = end < start;
-        var clock = now.TimeOfDay;
-        var today = DateOnly.FromDateTime(now);
-
-        if (!crossesMidnight)
-        {
             return today;
         }
 
-        // Still in the early-morning part of last night's shift → previous calendar day.
-        if (clock < end)
+        var end = shiftEnd.Value;
+        var crossesMidnight = end < shiftStart.Value;
+
+        // Night shift 22:00–07:00: still Monday until 07:00, even after 4:00 AM.
+        if (crossesMidnight && clock < end)
+        {
+            return today.AddDays(-1);
+        }
+
+        // Team option: 12:00 AM–3:59 AM counts as yesterday (midnight-start shifts).
+        if (earlyMorningPreviousDay && !crossesMidnight && clock < EarlyMorningCutoff)
         {
             return today.AddDays(-1);
         }
@@ -45,7 +58,8 @@ public static class AttendanceClock
         DateTime now,
         DateOnly attendanceDate,
         TimeSpan shiftStart,
-        TimeSpan shiftEnd)
+        TimeSpan shiftEnd,
+        bool earlyMorningPreviousDay = false)
     {
         var crossesMidnight = shiftEnd < shiftStart;
         var windowStart = attendanceDate.ToDateTime(TimeOnly.FromTimeSpan(shiftStart));
@@ -53,7 +67,27 @@ public static class AttendanceClock
             ? attendanceDate.AddDays(1).ToDateTime(TimeOnly.FromTimeSpan(shiftEnd))
             : attendanceDate.ToDateTime(TimeOnly.FromTimeSpan(shiftEnd));
 
-        return now >= windowStart && now <= windowEnd;
+        if (now >= windowStart && now <= windowEnd)
+        {
+            return true;
+        }
+
+        // Same shift hours on the next morning, but only until 4:00 AM,
+        // because that punch is stored on this attendance date.
+        if (!earlyMorningPreviousDay || crossesMidnight)
+        {
+            return false;
+        }
+
+        var clock = now.TimeOfDay;
+        var nextMidnight = attendanceDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        var cutoff = nextMidnight.Add(EarlyMorningCutoff);
+        if (now < nextMidnight || now >= cutoff)
+        {
+            return false;
+        }
+
+        return clock >= shiftStart && clock <= shiftEnd;
     }
 
     /// <summary>

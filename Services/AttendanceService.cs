@@ -797,7 +797,8 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
         // Flexible teams skip the window check. Fixed shifts only punch inside Start → End.
         if (!work.IsFlexibleTiming &&
             work.HasShift &&
-            !AttendanceClock.IsWithinShiftWindow(nowLocal, today, work.ShiftStart!.Value, work.ShiftEnd!.Value))
+            !AttendanceClock.IsWithinShiftWindow(
+                nowLocal, today, work.ShiftStart!.Value, work.ShiftEnd!.Value, work.EarlyMorningPreviousDay))
         {
             var timing = AttendanceClock.FormatShift(work.ShiftStart.Value, work.ShiftEnd.Value);
             return (false, $"Outside your shift window ({work.ShiftName}: {timing}).");
@@ -1352,7 +1353,10 @@ public partial class AttendanceService(AttendanceDbContext db) : IAttendanceServ
             ShiftTemplate? shift = shiftId is int sid && shifts.TryGetValue(sid, out var sh) ? sh : null;
 
             var weekOffDates = BuildWeekOffDates(from, to, weekOffMask, rosterByEmp[emp.EmployeeId]);
-            var currentAttDate = AttendanceClock.GetAttendanceDate(now, shift?.StartTime, shift?.EndTime);
+            var earlyMorning = teamSched?.EarlyMorningPreviousDay == true;
+            var shiftStart = teamSched?.IsFlexibleTiming == true ? null : shift?.StartTime;
+            var shiftEnd = teamSched?.IsFlexibleTiming == true ? null : shift?.EndTime;
+            var currentAttDate = AttendanceClock.GetAttendanceDate(now, shiftStart, shiftEnd, earlyMorning);
             var dayCells = BuildMonthDayCells(year, month, byDate, holidaySet, weekOffDates, currentAttDate);
 
             MonthStats calc;

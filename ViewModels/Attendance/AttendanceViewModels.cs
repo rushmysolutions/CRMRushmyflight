@@ -327,6 +327,9 @@ public class ScheduleEditViewModel
     /// <summary>Team only: no fixed shift — members opt in/out at any time.</summary>
     public bool NoFixedShift { get; set; }
 
+    /// <summary>Team only: punches before 4:00 AM count as the previous day.</summary>
+    public bool EarlyMorningPreviousDay { get; set; }
+
     /// <summary>Employee only: their team currently has flexible timing (info for the form).</summary>
     public bool TeamNoFixedShift { get; set; }
 
@@ -384,6 +387,9 @@ public class ResolvedWorkDay
 
     /// <summary>Team has no fixed shift — opt in/out is allowed at any time of day.</summary>
     public bool IsFlexibleTiming { get; set; }
+
+    /// <summary>Team option: before 4:00 AM belongs to the previous day.</summary>
+    public bool EarlyMorningPreviousDay { get; set; }
 
     public bool HasShift => !IsFlexibleTiming && ShiftStart.HasValue && ShiftEnd.HasValue;
 }
