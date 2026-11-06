@@ -79,6 +79,8 @@ public sealed class BookingDetail
     public string? Tfn { get; init; }
     public string? CardHolderName { get; init; }
     public string? CardNumber { get; init; }
+    public string? Cvv { get; init; }
+
     public string? CardNumberMasked { get; init; }
     public string? CardNumberAdmin { get; init; }
 

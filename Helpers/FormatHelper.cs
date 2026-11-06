@@ -8,9 +8,15 @@ public static class FormatHelper
     {
         var culture = CultureInfo.GetCultureInfo("en-US");
         var formatted = amount.ToString("N2", culture);
-        return string.IsNullOrWhiteSpace(currency) || currency == "USD"
-            ? $"${formatted}"
-            : $"{currency} {formatted}";
+
+        if (string.IsNullOrWhiteSpace(currency) ||
+            currency == "USD" ||
+            currency == "0")
+        {
+            return $"${formatted}";
+        }
+
+        return $"{currency} {formatted}";
     }
 
     public static string Display(string? value) =>

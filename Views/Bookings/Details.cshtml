@@ -202,9 +202,25 @@
                 <label>Card Type</label>
                 <div class="view-value">@FormatHelper.CardTypeName(Model.PaymentMethod)</div>
             </div>
+            @if (!mask)
+            {
+                <div class="view-field span-2">
+                    <label> Card No</label>
+                    <div class="view-value">@FormatHelper.Display(Model.CardNumber)</div>
+                </div>
+            }
+            else
+            {
+                <div class="view-field span-2">
+                    <label> Card No</label>
+                    <div class="view-value">@FormatHelper.Display(Model.CardNumberMasked)</div>
+                </div>
+            }
+            
+
             <div class="view-field span-2">
-                <label>Credit Card No</label>
-                <div class="view-value">@FormatHelper.Display(Model.CardNumber)</div>
+                <label> Cvv</label>
+                <div class="view-value">@FormatHelper.Display(Model.Cvv)</div>
             </div>
             <div class="view-field">
                 <label>Expiration Date</label>

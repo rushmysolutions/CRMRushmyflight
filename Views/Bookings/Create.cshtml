@@ -8,6 +8,31 @@
     var months = Enumerable.Range(1, 12);
     var years = Enumerable.Range(DateTime.Now.Year - 100, 101).Reverse();
     var restricted = CrmAccess.IsRestricted(User);
+
+    var ticketOptions = BookingStatusHelper.TicketOptionsFor(
+    restricted, Model.TicketStatus?.ToString());
+
+    var mcoOptions = BookingStatusHelper.McoOptionsFor(
+        restricted, Model.McoStatus?.ToString());
+
+    // Confirmed 
+    var ticketConfirmedValue = ticketOptions
+        .FirstOrDefault(x => x.Label.Equals("Confirmed",
+            StringComparison.OrdinalIgnoreCase))?.Value;
+
+    var mcoConfirmedValue = mcoOptions
+        .FirstOrDefault(x => x.Label.Equals("Confirmed",
+            StringComparison.OrdinalIgnoreCase))?.Value;
+
+    // Only Agent + Both statuses Confirmed
+    var isFinancialFieldsLocked =
+        restricted &&
+        ticketConfirmedValue != null &&
+        mcoConfirmedValue != null &&
+        Model.TicketStatus?.ToString() == ticketConfirmedValue &&
+        Model.McoStatus?.ToString() == mcoConfirmedValue;
+
+
     var uploadsBase = Url.Content("~/uploads/bookings/");
     var maskSensitive = isEdit && restricted;
 
@@ -288,33 +313,91 @@
                     <option value="4">Discover</option>
                 </select>
             </div>
-            <div class="form-field span-2">
-                <label>Credit Card No</label>
-                @if (maskSensitive)
+            @* <div class="form-field span-2">
+                <label>Card No</label>
+                if (maskSensitive)
                 {
-                    <input value="@FormatHelper.Display(Model.CardNumber)" class="ref-readonly" readonly />
+                    <input value="@SensitiveMask.CardLastFour(Model.CardNumber)" class="ref-readonly" readonly />
                 }
                 else
                 {
                     <input asp-for="CardNumber" placeholder="xxxx-xxxx-xxxx-xxxx" />
                     <small class="field-hint">Card number format: xxxx-xxxx-xxxx-xxxx</small>
+                } 
+            </div> *@
+
+            <div class="form-field span-2">
+                <label asp-for="CardNumber">Card No</label>
+
+                @if (maskSensitive)
+                {
+                    <input type="text"
+                           id="CardNumber"
+                           name="CardNumber"
+                           value="@SensitiveMask.CardLastFour(Model.CardNumber)"
+                           placeholder="Enter new card number"
+                           autocomplete="off"
+                           inputmode="numeric"
+                           maxlength="19"
+                           minlength="12"
+                           pattern="[0-9]{12,19}"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 19);" />
+
+                    <small class="field-hint">
+                        Existing card number is protected.
+                        Enter a new number only if you want to update it.
+                    </small>
+                }
+                else
+                {
+                    <input asp-for="CardNumber"
+                           placeholder="xxxx-xxxx-xxxx-xxxx" />
+
+                    <small class="field-hint">
+                        Card number format: xxxx-xxxx-xxxx-xxxx
+                    </small>
                 }
             </div>
+
+
             <div class="form-field">
                 <label asp-for="ExpiryDate">Expiration Date</label>
                 <input asp-for="ExpiryDate" placeholder="MM/YY" maxlength="5" />
             </div>
-            <div class="form-field">
+            @* <div class="form-field">
                 <label asp-for="Cvv">CVV</label>
                 <input asp-for="Cvv" maxlength="4" />
+            </div> *@
+
+            <div class="form-field">
+                <label asp-for="Cvv">CVV</label>
+
+                @if (maskSensitive)
+                {
+                    <input type="password"
+                           id="Cvv"
+                           name="Cvv"
+                           value="@Model.Cvv"
+                           maxlength="4"
+                           placeholder="Enter new CVV"
+                           autocomplete="new-password" />
+                }
+                else
+                {
+                    <input asp-for="Cvv" maxlength="4" />
+                }
             </div>
+
+
             @* <div class="form-field">
                 <label asp-for="InboundPhone">Inbound No.</label>
                 <input asp-for="InboundPhone" />
             </div> *@
-            <div class="form-field">
+
+
+            @*  <div class="form-field">
                 <label>Inbound No.</label>
-                @if (maskSensitive)
+                if (maskSensitive)
                 {
                     <input value="@SensitiveMask.Value(Model.InboundPhone)" class="ref-readonly" readonly />
                 }
@@ -323,10 +406,30 @@
 
                     <input asp-for="InboundPhone" />
                 }
-            </div>
+            </div> *@
+
             <div class="form-field">
-                <label>Billing No.</label>
+                <label>Inbound No.</label>
+
                 @if (maskSensitive)
+                {
+                    <input type="text"
+                           id="InboundPhone"
+                           name="InboundPhone"
+                           value="@SensitiveMask.Value(Model.InboundPhone)"
+                           placeholder="Enter new inbound number"
+                           autocomplete="off" />
+                }
+                else
+                {
+                    <input asp-for="InboundPhone" />
+                }
+            </div>
+
+
+            @* <div class="form-field">
+                <label>Billing No.</label>
+                if (maskSensitive)
                 {
                     <input value="@SensitiveMask.Value(Model.BillingPhone)" class="ref-readonly" readonly />
                 }
@@ -335,10 +438,28 @@
 
                     <input asp-for="BillingPhone" />
                 }
-            </div>
-            <div class="form-field span-2">
-                <label>Email ID</label>
+            </div> *@
+
+            <div class="form-field">
+                <label>Billing No.</label>
+
                 @if (maskSensitive)
+                {
+                    <input type="text"
+                           id="BillingPhone"
+                           name="BillingPhone"
+                           value="@SensitiveMask.Value(Model.BillingPhone)"
+                           placeholder="Enter new billing number"
+                           autocomplete="off" />
+                }
+                else
+                {
+                    <input asp-for="BillingPhone" />
+                }
+            </div>
+            @*  <div class="form-field span-2">
+                <label>Email ID</label>
+                if (maskSensitive)
                 {
                     <input value="@SensitiveMask.Value(Model.Email)" class="ref-readonly" readonly />
                 }
@@ -347,7 +468,33 @@
 
                     <input asp-for="Email" type="email" placeholder="Comma separated email ID" />
                 }
+            </div> *@
+
+
+            <div class="form-field span-2">
+                <label>Email ID</label>
+
+                @if (maskSensitive)
+                {
+                    <input type="text"
+                           id="Email"
+                           name="Email"
+                           value="@SensitiveMask.Value(Model.Email)"
+                           placeholder="Enter new email ID"
+                           autocomplete="off" />
+
+                    <small class="field-hint">
+                        Existing email is protected. Enter a new email to update it.
+                    </small>
+                }
+                else
+                {
+                    <input asp-for="Email"
+                           type="email"
+                           placeholder="Comma separated email ID" />
+                }
             </div>
+
             <div class="form-field span-2">
                 <label asp-for="BillingAddress">Billing Address</label>
                 <textarea asp-for="BillingAddress" rows="3"></textarea>
@@ -402,7 +549,10 @@
         <div class="form-grid">
             <div class="form-field">
                 <label asp-for="TicketCost">Ticket Cost</label>
-                <input asp-for="TicketCost" placeholder="Comma separated values" />
+                <input asp-for="TicketCost"
+                       placeholder="Comma separated values"
+                       readonly="@isFinancialFieldsLocked" />
+               @*  <input asp-for="TicketCost" placeholder="Comma separated values" /> *@
             </div>
             <div class="form-field">
                 <label asp-for="AirlineName">Airline Name</label>
@@ -410,11 +560,16 @@
             </div>
             <div class="form-field">
                 <label asp-for="McoAmount">MCO</label>
-                <input asp-for="McoAmount" />
+                <input asp-for="McoAmount"
+                       readonly="@isFinancialFieldsLocked" />
             </div>
             <div class="form-field">
                 <label asp-for="TotalAmount">Total</label>
-                <input asp-for="TotalAmount" class="ref-readonly" readonly tabindex="-1" />
+                @* <input asp-for="TotalAmount" class="ref-readonly" readonly tabindex="-1" /> *@
+                <input asp-for="TotalAmount"
+                       class="ref-readonly"
+                       readonly
+                       tabindex="-1" />
                 <small class="field-hint">Ticket Cost + MCO</small>
             </div>
             <div class="form-field">
@@ -469,11 +624,16 @@
             </div>
             <div class="form-field">
                 <label asp-for="PartialRefund">Partial Refund</label>
-                <input asp-for="PartialRefund" />
+                <input asp-for="PartialRefund"
+                       readonly="@isFinancialFieldsLocked" />
             </div>
             <div class="form-field">
                 <label asp-for="NetMco">Net MCO</label>
-                <input asp-for="NetMco" class="ref-readonly" readonly tabindex="-1" />
+               @*  <input asp-for="NetMco" class="ref-readonly" readonly tabindex="-1" /> *@
+                <input asp-for="NetMco"
+                       class="ref-readonly"
+                       readonly
+                       tabindex="-1" />
                 <small class="field-hint">MCO − @BookingAmountCalculator.McoDeductionPercent%</small>
             </div>
             <div class="form-field">
@@ -504,8 +664,8 @@
             </div>
         </div>
     </section>
-            @if (Model.BookId != null)
-        {
+    @if (Model.BookId != null)
+    {
         <section class="form-section">
             <header class="form-section-header">Upload Images / Documents</header>
             <div class="section-body">
@@ -551,7 +711,7 @@
                 </div>
             </div>
         </section>
-        }
+    }
 
    
 
@@ -876,5 +1036,43 @@
             ticket.addEventListener('input', recalc);
             mco.addEventListener('input', recalc);
         })();
+    </script>
+    <script>
+        function validateCardNumber(cardNumber) {
+            if (!/^\d{12,19}$/.test(cardNumber)) {
+                return false;
+            }
+
+            let sum = 0;
+            let alternate = false;
+
+            for (let i = cardNumber.length - 1; i >= 0; i--) {
+                let digit = parseInt(cardNumber[i], 10);
+
+                if (alternate) {
+                    digit *= 2;
+
+                    if (digit > 9) {
+                        digit -= 9;
+                    }
+                }
+
+                sum += digit;
+                alternate = !alternate;
+            }
+
+            return sum % 10 === 0;
+        }
+
+        document.getElementById("CardNumber")?.addEventListener("blur", function() {
+            const value = this.value.trim();
+
+            if (value === "") return;
+
+            if (!validateCardNumber(value)) {
+                alert("Please enter a valid card number.");
+                this.focus();
+            }
+        });
     </script>
 }

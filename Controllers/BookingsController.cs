@@ -40,7 +40,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         model.BookingTypes = await DataService.GetBookingTypesAsync();
 
 
-        
+
         if (CrmAccess.IsRestricted(User))
         {
             var existing = model.IsEdit ? await DataService.GetBookingStatusesAsync(model.BookId) : null;
@@ -148,39 +148,101 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(CreateBookingViewModel model, IFormFile[]? files)
+    //public async Task<IActionResult> Edit(CreateBookingViewModel model, IFormFile[]? files)
+    //{
+    //    model.BookingTypes = await DataService.GetBookingTypesAsync();
+    //    if (model.BookId is int bid && !await CanAccessBookingAsync(bid))
+    //        return RedirectToAction("Index", "Home");
+
+    //    BookingAmountCalculator.Apply(model);
+    //    // asp-for reads ModelState first, so clear these or the old posted values show on redisplay
+    //    ModelState.Remove(nameof(model.TotalAmount));
+    //    ModelState.Remove(nameof(model.NetMco));
+
+    //    if (CrmAccess.IsRestricted(User) && model.BookId is int editId)
+    //    {
+    //        var existing = model.IsEdit ? await DataService.GetBookingStatusesAsync(model.BookId) : null;
+    //        model.TicketStatus = BookingStatusHelper.AgentSafeTicket(model.TicketStatus, existing?.Ticket);
+    //        model.McoStatus = BookingStatusHelper.AgentSafeMco(model.McoStatus, existing?.Mco);
+    //        var original = await DataService.GetBookingForEditAsync(editId);
+    //        if (original is null) return NotFound();
+
+    //        model.CardNumber = original.CardNumber;
+    //        model.Email = original.Email;
+    //        model.InboundPhone = original.InboundPhone;
+    //        model.BillingPhone = original.BillingPhone;
+
+    //        ModelState.Remove(nameof(model.CardNumber));
+    //        ModelState.Remove(nameof(model.Email));
+    //        ModelState.Remove(nameof(model.InboundPhone));
+    //        ModelState.Remove(nameof(model.BillingPhone));
+    //    }
+
+    //    if (model.BookId is not > 0)
+    //    {
+    //        return NotFound();
+    //    }
+
+    //    if (!ValidateBookingForm(model))
+    //    {
+    //        return View("Create", model);
+    //    }
+
+    //    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0";
+
+    //    try
+    //    {
+    //        var updated = await DataService.UpdateBookingAsync(model, userId);
+    //        if (!updated)
+    //        {
+    //            return NotFound();
+    //        }
+    //        await SaveAttachmentsAsync(model.BookId!.Value, files);
+
+    //        TempData["BookingUpdated"] = model.ReferenceNo ?? "Booking";
+    //        return RedirectToAction(nameof(Index));
+    //    }
+    //    catch (DbUpdateException ex) when (ex.InnerException is MySqlException mysql)
+    //    {
+    //        ModelState.AddModelError(string.Empty, $"Database error ({mysql.Number}): {mysql.Message}");
+    //    }
+    //    catch (MySqlException ex)
+    //    {
+    //        ModelState.AddModelError(string.Empty, $"Database error ({ex.Number}): {ex.Message}");
+    //    }
+
+    //    return View("Create", model);
+    //}
+
+
+    public async Task<IActionResult> Edit(
+    CreateBookingViewModel model,
+    IFormFile[]? files)
     {
         model.BookingTypes = await DataService.GetBookingTypesAsync();
+
         if (model.BookId is int bid && !await CanAccessBookingAsync(bid))
             return RedirectToAction("Index", "Home");
 
+        if (model.BookId is not > 0)
+            return NotFound();
+
+        var isRestricted = CrmAccess.IsRestricted(User);
+
         BookingAmountCalculator.Apply(model);
-        // asp-for reads ModelState first, so clear these or the old posted values show on redisplay
+
         ModelState.Remove(nameof(model.TotalAmount));
         ModelState.Remove(nameof(model.NetMco));
 
-        if (CrmAccess.IsRestricted(User) && model.BookId is int editId)
+        if (isRestricted)
         {
-            var existing = model.IsEdit ? await DataService.GetBookingStatusesAsync(model.BookId) : null;
-            model.TicketStatus = BookingStatusHelper.AgentSafeTicket(model.TicketStatus, existing?.Ticket);
-            model.McoStatus = BookingStatusHelper.AgentSafeMco(model.McoStatus, existing?.Mco);
-            var original = await DataService.GetBookingForEditAsync(editId);
-            if (original is null) return NotFound();
+            var existing = await DataService.GetBookingStatusesAsync(model.BookId);
 
-            model.CardNumber = original.CardNumber;
-            model.Email = original.Email;
-            model.InboundPhone = original.InboundPhone;
-            model.BillingPhone = original.BillingPhone;
+            model.TicketStatus = BookingStatusHelper.AgentSafeTicket(
+                model.TicketStatus, existing?.Ticket);
 
-            ModelState.Remove(nameof(model.CardNumber));
-            ModelState.Remove(nameof(model.Email));
-            ModelState.Remove(nameof(model.InboundPhone));
-            ModelState.Remove(nameof(model.BillingPhone));
-        }
-
-        if (model.BookId is not > 0)
-        {
-            return NotFound();
+            model.McoStatus = BookingStatusHelper.AgentSafeMco(
+                model.McoStatus, existing?.Mco);
         }
 
         if (!ValidateBookingForm(model))
@@ -192,23 +254,31 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
         try
         {
-            var updated = await DataService.UpdateBookingAsync(model, userId);
+            var updated = await DataService.UpdateBookingAsync(
+                model,
+                userId,
+                preserveSensitiveWhenBlank: isRestricted);
+
             if (!updated)
-            {
                 return NotFound();
-            }
-            await SaveAttachmentsAsync(model.BookId!.Value, files);
+
+            await SaveAttachmentsAsync(model.BookId.Value, files);
 
             TempData["BookingUpdated"] = model.ReferenceNo ?? "Booking";
+
             return RedirectToAction(nameof(Index));
         }
         catch (DbUpdateException ex) when (ex.InnerException is MySqlException mysql)
         {
-            ModelState.AddModelError(string.Empty, $"Database error ({mysql.Number}): {mysql.Message}");
+            ModelState.AddModelError(
+                string.Empty,
+                $"Database error ({mysql.Number}): {mysql.Message}");
         }
         catch (MySqlException ex)
         {
-            ModelState.AddModelError(string.Empty, $"Database error ({ex.Number}): {ex.Message}");
+            ModelState.AddModelError(
+                string.Empty,
+                $"Database error ({ex.Number}): {ex.Message}");
         }
 
         return View("Create", model);
@@ -294,7 +364,7 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
 
     private async Task<CreateBookingViewModel> BuildCreateViewModelAsync()
     {
-       
+
         return new CreateBookingViewModel
         {
             ReferenceNo = await DataService.GenerateNextReferenceNoAsync(),
@@ -358,12 +428,18 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         var bookings = await DataService.GetBookingsAsync(
     page, pageSize, filter, typeLookup, BookingAccessScope.For(User));
 
+
+        var agents = await DataService.GetAllAgentsAsync();
+        var admins = await DataService.GetAdminsAsync();
+
         var model = new BookingsIndexViewModel
         {
             Bookings = bookings,
             BookingTypes = bookingTypes,
             Filter = filter,
-            Page = page
+            Page = page,
+            Agents = agents,
+            Admins = admins
         };
 
         return View(model);
@@ -983,5 +1059,46 @@ public class BookingsController(ICrmDataService dataService, IBookingFileService
         return exists && createdBy == CrmAccess.UserId(User);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Clone(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0";
+
+        try
+        {
+            var newReferenceNo = await DataService.CloneBookingAsync(id, userId);
+
+            if (newReferenceNo == null)
+            {
+                TempData["UploadError"] = "Original booking not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            TempData["BookingCreated"] = newReferenceNo;
+
+            return RedirectToAction(nameof(Index));
+        }
+        catch (Exception)
+        {
+            TempData["UploadError"] = "Unable to clone booking. Please try again.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAgent(int bid, int agentId)
+    => Content(await DataService.UpdateCreatedByAsync(bid, agentId, BookingAccessScope.For(User)) ? "updated" : "failed");
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAdmin(int bid, int adminId)
+        => Content(await DataService.UpdateWorkingUserAsync(bid, adminId, BookingAccessScope.For(User)) ? "updated" : "failed");
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateQuality(int bid, int status)
+        => Content(await DataService.UpdateQualityStatusAsync(bid, status, BookingAccessScope.For(User)) ? "updated" : "failed");
 
 }

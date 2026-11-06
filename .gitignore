@@ -7,3 +7,7 @@
 /bin/Release/net10.0
 /.vs/RushMyBookings.Crm.slnx
 /.vs
+/Controllers
+/Services
+/ViewModels/Reports
+/Views/EmployeeReports

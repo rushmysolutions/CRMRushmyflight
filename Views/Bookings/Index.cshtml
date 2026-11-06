@@ -4,6 +4,8 @@
     ViewData["ActiveNav"] = "bookings";
     var result = Model.Bookings;
     var f = Model.Filter;
+    var restricted = CrmAccess.IsRestricted(User);
+
 }
 <style>
     .action-icons .inline-action {
@@ -159,9 +161,44 @@
                                 @BookingStatusHelper.AckStatusLabel(b.CustomerAckStatus)
                             </span>
                         </td>
-                        <td>@(b.CreatedByName ?? "-")</td>
+                        @if (restricted)
+                        {
+                            <td>@(b.CreatedByName ?? "-")</td> 
+                        }
+                        else
+                        {
+                            <td>
+                                <select class="form-control" id="agent_id_@b.BookId">
+                                    <option value="0"> - Select Agent - </option>
+                                    @foreach (var u in Model.Agents)
+                                    {
+                                        <option value="@u.Id" selected="@(b.CreatedById?.ToString() == u.Id.ToString())">@u.Name</option>
+                                    }
+                                </select>
+                                <small><a href="javascript:void(0);" onclick="updateBookingAgent(@b.BookId);">Change Agent?</a></small>
+                            </td>
+                        }
+                        
+
                         <td>@(b.CreatedDate ?? "-")</td>
-                        <td>@(b.AssignedUserName ?? "-")</td>
+                        @if (restricted)
+                        {
+                                                     <td>@(b.AssignedUserName ?? "-")</td>
+                        }
+                        else
+                        {
+                            <td>
+                                <select class="form-control" id="admin_id_@b.BookId">
+                                    <option value="0"> - Select Admin - </option>
+                                    @foreach (var u in Model.Admins)
+                                    {
+                                        <option value="@u.Id" selected="@(b.AssignedUserId?.ToString() == u.Id.ToString())">@u.Name</option>
+                                    }
+                                </select>
+                                <small><a href="javascript:void(0);" onclick="updateBookingAdminWorking(@b.BookId);">Change Admin?</a></small>
+                            </td>
+                        }
+                       
                         <td>
                             <span class="badge @BookingStatusHelper.TicketStatusClass(b.TicketStatus)" style="margin-bottom:6px;">
                                 @BookingStatusHelper.TicketStatusLabel(b.TicketStatus)
@@ -171,10 +208,21 @@
                                 @BookingStatusHelper.McoStatusLabel(b.McoStatus)
                             </span>
                         </td>
-                        <td>
+
+                       @*  <td>
                             <span class="badge @BookingStatusHelper.QualityStatusClass(b.QualityStatus)">
                                 @BookingStatusHelper.QualityStatusLabel(b.QualityStatus)
                             </span>
+                        </td> *@
+
+                        <td>
+                            <select class="form-control" id="quality_id_@b.BookId">
+                                @foreach (var q in Model.QualityStatuses)
+                                {
+                                    <option value="@q.Value" selected="@(b.QualityStatus?.ToString() == q.Value.ToString())">@q.Label</option>
+                                }
+                            </select>
+                            <small><a href="javascript:void(0);" onclick="updateQualityStatus(@b.BookId);">Change Status?</a></small>
                         </td>
                         <td>
                             <span class="badge @BookingStatusHelper.FollowUpClass(b.FollowUpBy, b.FollowUpDate)">
@@ -203,18 +251,29 @@
                                    asp-route-id="@b.BookId"
                                    asp-route-page="@Model.Page"
                                    title="Comments">💬</a>
-
-                                @* New: Email (opens the email preview page with the "Send Email" button) *@
-                                <a class="icon-btn email"
-                                   asp-action="Email"
-                                   asp-route-id="@b.BookId"
-                                   title="Send Email">✉</a>
-                                <a class="icon-btn eticket"
-                                   asp-action="ETicket"
-                                   asp-route-id="@b.BookId"
-                                   title="E-Ticket">🎫</a>
+                                @if (!restricted)
+                                {
+                                    @* New: Email (opens the email preview page with the "Send Email" button) *@
+                                    <a class="icon-btn email"
+                                       asp-action="Email"
+                                       asp-route-id="@b.BookId"
+                                       title="Send Email">✉</a>
+                                    <a class="icon-btn eticket"
+                                       asp-action="ETicket"
+                                       asp-route-id="@b.BookId"
+                                       title="E-Ticket">🎫</a>
+                                }
+                                
                                 @* New: Clone (POST, because it creates a new booking) *@
-                                <form method="post" asp-action="Clone" asp-route-id="@b.BookId" class="inline-action"
+                               @*  <form method="post" asp-action="Clone" asp-route-id="@b.BookId" class="inline-action"
+                                      onsubmit="return confirm('Clone booking @(b.ReferenceNo ?? b.BookId.ToString())?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="icon-btn clone" title="Clone">⧉</button>
+                                </form> *@
+                                <form method="post"
+                                      asp-action="Clone"
+                                      asp-route-id="@b.BookId"
+                                      class="inline-action"
                                       onsubmit="return confirm('Clone booking @(b.ReferenceNo ?? b.BookId.ToString())?');">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="icon-btn clone" title="Clone">⧉</button>
@@ -301,6 +360,7 @@
 </div>
 
 @section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
         (function () {
             const modal = document.getElementById('upload-modal');
@@ -329,5 +389,18 @@
                 el.addEventListener('click', closeModal);
             });
         })();
+    </script>
+    <script>
+        function postUpdate(actionName, data, successMsg) {
+            data.__RequestVerificationToken = $('input[name="__RequestVerificationToken"]').first().val();
+            $.post('@Url.Action("ACTION", "Bookings")'.replace('ACTION', actionName), data, function(res) {
+                alert(res === 'updated' ? successMsg : 'OPPS!!! You are unable to update it!!!');
+            }).fail(function() {
+                alert('OPPS!!! You are unable to update it!!!');
+            });
+        }
+        function updateBookingAgent(bid) { postUpdate('UpdateAgent', { bid: bid, agentId: $('#agent_id_' + bid).val() }, 'Updated Successfully.'); }
+        function updateBookingAdminWorking(bid) { postUpdate('UpdateAdmin', { bid: bid, adminId: $('#admin_id_' + bid).val() }, 'Updated Successfully.'); }
+        function updateQualityStatus(bid) { postUpdate('UpdateQuality', { bid: bid, status: $('#quality_id_' + bid).val() }, 'Quality Status Updated Successfully.'); }
     </script>
 }

@@ -24,7 +24,7 @@ public interface ICrmDataService
     Task<IReadOnlyList<BookingTypeOption>> GetBookingTypesAsync();
     Task<string> GenerateNextReferenceNoAsync();
     Task<(int BookId, string ReferenceNo)> CreateBookingAsync(CreateBookingViewModel model, string userId);
-    Task<bool> UpdateBookingAsync(CreateBookingViewModel model, string userId);
+    Task<bool> UpdateBookingAsync(CreateBookingViewModel model, string userId, bool preserveSensitiveWhenBlank = false);
     Task<IReadOnlyList<AgentPerformanceViewModel>> GetAgentPerformanceAsync(
         DateTime? fromDate,
         DateTime? toDate, int? onlyUserId = null);
@@ -74,4 +74,11 @@ public interface ICrmDataService
     Task<ManageIpViewModel?> GetAgentIpsAsync(int userId);
     Task<bool> UpdateAgentIpsAsync(int userId, string allowedIps);
     Task<int> UpdateAllAgentIpsAsync(string allowedIps);
+    Task<string?> CloneBookingAsync(int bookId, string userId);
+    Task<bool> UpdateCreatedByAsync(int bookingId, int userId, BookingAccessScope scope);
+
+    Task<bool> UpdateWorkingUserAsync(int bookingId, int userId, BookingAccessScope scope);
+    Task<bool> UpdateQualityStatusAsync(int bookingId, int status, BookingAccessScope scope);
+    Task<IReadOnlyList<UserOption>> GetAllAgentsAsync();
+    Task<IReadOnlyList<UserOption>> GetAdminsAsync();
 }

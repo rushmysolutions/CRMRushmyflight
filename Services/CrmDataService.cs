@@ -1,4 +1,6 @@
+using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.VariantTypes;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using RushMyBookings.Crm.Data;
@@ -16,6 +18,8 @@ namespace RushMyBookings.Crm.Services;
 
 public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDataService
 {
+    private static readonly string[] AdminUserTypes = { "2" };
+
     private const string DbConnectedCacheKey = "crm:db-connected";
     private const string DashboardStatsCacheKey = "crm:dashboard-stats";
     private static readonly TimeSpan DbConnectedCacheTtl = TimeSpan.FromMinutes(1);
@@ -140,6 +144,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         }
         else if (ownOnly)
         {
+            query = query.Where(b => b.IsHide == 0);
             var uid = string.IsNullOrWhiteSpace(scope!.UserId) ? "-1" : scope.UserId!;
             query = query.Where(b => b.CreatedBy == uid);
         }
@@ -229,7 +234,8 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 b.McoStatus,
                 b.QualityStatus,
                 b.FollowUpBy,
-                b.FollowUpDate
+                b.FollowUpDate,
+                b.CardHolderName
             })
             .ToListAsync();
 
@@ -292,7 +298,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
                 ReferenceNo = b.ReferenceNo,
                 BookingType = b.BookingType,
                 TypeName = typeName,
-                CustomerName = b.CustomerName,
+                CustomerName = b.CardHolderName,
                 Email = b.Email,
                 Phone = b.Phone,
                 Airline = b.Airline,
@@ -468,7 +474,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             CardNumber = DecryptCard(booking.CardNumber),
             CardNumberMasked = FormatHelper.MaskCard(booking.CardNumber, booking.LastFourCardDigits),
             CardNumberAdmin = booking.CardNumber,
-
+            Cvv = DecryptCvv(booking.Cvv),
             ExpiryDate = booking.ExpiryDate,
             InboundPhone = booking.InboundPhone,
             BillingAddress = booking.Address,
@@ -1014,7 +1020,7 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
 
     public async Task<bool> UpdateBookingAsync(
         CreateBookingViewModel model,
-        string userId)
+        string userId, bool preserveSensitiveWhenBlank = false)
     {
         if (model.BookId is not > 0)
         {
@@ -1028,6 +1034,26 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         {
             return false;
         }
+
+        //if (CrmAccess.IsRestricted(User))
+        //{
+        //    bool isConfirmed =
+        //        booking.TicketStatus == /* Actual Ticket Confirmed Value */ &&
+        //        booking.McoStatus == ;
+
+        //    if (isConfirmed)
+        //    {
+        //        // Preserve existing financial values
+        //        // Do not update these fields from posted model
+
+        //        model.TicketCost = booking.TicketCost;
+        //        model.McoAmount = booking.McoAmount.ToString("0.##");
+        //        model.TotalAmount = booking.TotalAmount.ToString("0.##");
+        //        model.PartialRefund = booking.PartialRefund;
+        //        model.NetMco = booking.NetMco.ToString("0.##");
+        //    }
+        //}
+
 
         var passengers = model.Passengers
             .Where(p => !string.IsNullOrWhiteSpace(p.FirstName) ||
@@ -1050,19 +1076,63 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
         //booking.FlightPnr = model.FlightPnr;
         booking.FlightInfo = model.FlightPnr;
         booking.CustomerName = model.CardHolderName;
-        booking.Email = model.Email;
-        booking.Phone = model.BillingPhone;
-        booking.InboundPhone = model.InboundPhone;
+        //booking.Email = model.Email;
+        //booking.Phone = model.BillingPhone;
+        //booking.InboundPhone = model.InboundPhone;
+
+
+        if (!string.IsNullOrWhiteSpace(model.CardNumber))
+        {
+            var cardNumber = model.CardNumber.Replace(" ", "").Replace("-", "");
+
+            if (cardNumber.Contains('*'))
+            {
+                // Masked card number: do not update.
+            }
+            else if (!System.Text.RegularExpressions.Regex.IsMatch(cardNumber, @"^\d{12,19}$"))
+            {
+                throw new ArgumentException("Card number must contain 12 to 19 digits.");
+            }
+            else if (!IsValidLuhnCardNumber(cardNumber))
+            {
+                throw new ArgumentException("Please enter a valid card number.");
+            }
+            else
+            {
+                booking.CardNumber = CardCrypto.EncryptCardNumber(cardNumber);
+                booking.LastFourCardDigits = cardNumber[^4..];
+            }
+        }
+
+        if (!preserveSensitiveWhenBlank ||
+    (model.Email != null && !model.Email.Contains('*')))
+        {
+            booking.Email = model.Email;
+        }
+
+        if (!preserveSensitiveWhenBlank ||
+            (model.BillingPhone != null && !model.BillingPhone.Contains('*')))
+        {
+            booking.Phone = model.BillingPhone;
+        }
+
+        // Inbound Phone: Update only if value does not contain *
+        if (!preserveSensitiveWhenBlank ||
+            (model.InboundPhone != null && !model.InboundPhone.Contains('*')))
+        {
+            booking.InboundPhone = model.InboundPhone;
+        }
         booking.NoOfPeople = passengers.Count;
         booking.PaymentMethod = model.CardType;
         booking.CardHolderName = model.CardHolderName;
 
-        if (!string.IsNullOrWhiteSpace(model.CardNumber) && !model.CardNumber.Contains('•'))
+        
+        if (!string.IsNullOrWhiteSpace(model.CardNumber) &&
+    model.CardNumber.IndexOf('*') == -1)
         {
             booking.CardNumber = CardCrypto.EncryptCardNumber(model.CardNumber);
             booking.LastFourCardDigits = lastFour;
         }
-
         booking.ExpiryDate = model.ExpiryDate;
         if (!string.IsNullOrWhiteSpace(model.Cvv) && !model.Cvv.Contains('•'))
         {
@@ -2063,4 +2133,212 @@ public sealed class CrmDataService(CrmDbContext db, IMemoryCache cache) : ICrmDa
             .Where(u => u.UserType != "superadmin")
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.AllowedIps, allowedIps));
     }
+
+
+
+
+    public async Task<string?> CloneBookingAsync(int bookId, string userId)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction =
+                await db.Database.BeginTransactionAsync();
+
+            try
+            {
+                var original = await db.Bookings
+                    .AsNoTracking()
+                    .Include(b => b.Passengers)
+                    .FirstOrDefaultAsync(b => b.BookId == bookId);
+
+                if (original == null)
+                {
+                    await transaction.RollbackAsync();
+                    return null;
+                }
+
+                var newReferenceNo = await GenerateNextReferenceNoAsync();
+
+                var clonedBooking = new BookFlightDetail
+                {
+                    ReferenceNo = newReferenceNo,
+                    BookingType = original.BookingType,
+                    CustomerName = original.CustomerName,
+                    Email = original.Email,
+                    Phone = original.Phone,
+                    Airline = original.Airline,
+                    Pnr = original.Pnr,
+                    FlightPnr = original.FlightPnr,
+                    FlightInfo = original.FlightInfo,
+                    Supplier = original.Supplier,
+                    TicketCost = original.TicketCost,
+                    TotalAmount = original.TotalAmount,
+                    Currency = original.Currency,
+
+                    TravelDate = original.TravelDate,
+                    ReturnDate = original.ReturnDate,
+                    NoOfPeople = original.Passengers.Count,
+                    ClassType = original.ClassType,
+                    TravelPhoneNumber = original.TravelPhoneNumber,
+                    InboundPhone = original.InboundPhone,
+
+                    McoAmount = original.McoAmount,
+                    NetMco = original.NetMco,
+                    McoSupplier = original.McoSupplier,
+                    McoStatus = original.McoStatus,
+                    PartialRefund = original.PartialRefund,
+
+                    TicketStatus = original.TicketStatus,
+                    QualityStatus = original.QualityStatus,
+
+                    City = original.City,
+                    State = original.State,
+                    Country = original.Country,
+                    Address = original.Address,
+                    Zip = original.Zip,
+
+                    PaymentMethod = original.PaymentMethod,
+                    SplitCharges = original.SplitCharges,
+                    PaymentUrl = original.PaymentUrl,
+                    PaymentMode = original.PaymentMode,
+
+                    CardHolderName = original.CardHolderName,
+                    CardNumber = null,
+                    LastFourCardDigits = null,
+                    ExpiryDate = null,
+                    Cvv = null,
+
+                    CustomEmailSubject = original.CustomEmailSubject,
+                    BookingLang = original.BookingLang,
+
+                    CreatedDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    CreatedBy = userId,
+                    AssignedUser = userId,
+
+                    CustomerAckStatus = 0,
+                    CustomerAckIp = null,
+                    CustomerAckLocation = null,
+                    CustomerAckDate = null,
+
+                    FollowUpBy = null,
+                    FollowUpDate = null,
+
+                    IsHide = 0
+                };
+
+                db.Bookings.Add(clonedBooking);
+                await db.SaveChangesAsync();
+
+                foreach (var passenger in original.Passengers)
+                {
+                    db.Passengers.Add(new PassengerList
+                    {
+                        BookingId = clonedBooking.BookId,
+                        FirstName = passenger.FirstName,
+                        MiddleName = passenger.MiddleName,
+                        LastName = passenger.LastName,
+                        Gender = passenger.Gender,
+                        Dob = passenger.Dob,
+                        TicketNo = passenger.TicketNo
+                    });
+                }
+
+                await db.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                cache.Remove(DashboardStatsCacheKey);
+
+                return newReferenceNo;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
+    }
+
+
+
+    private static bool IsValidLuhnCardNumber(string cardNumber)
+    {
+        int sum = 0;
+        bool alternate = false;
+
+        for (int i = cardNumber.Length - 1; i >= 0; i--)
+        {
+            int digit = cardNumber[i] - '0';
+
+            if (alternate)
+            {
+                digit *= 2;
+
+                if (digit > 9)
+                    digit -= 9;
+            }
+
+            sum += digit;
+            alternate = !alternate;
+        }
+
+        return sum % 10 == 0;
+    }
+
+    public async Task<IReadOnlyList<UserOption>> GetAllAgentsAsync()
+    {
+        return await db.Users.AsNoTracking()
+            .Where(u => u.Status.ToString() == "1")
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .Select(u => new UserOption
+            {
+                Id = u.UserId,
+                Name = ((u.FirstName ?? "") + " " + (u.LastName ?? "")).Trim()
+            })
+            .ToListAsync();
+    }
+
+    // Working User dropdown: sirf admin type wale users
+    public async Task<IReadOnlyList<UserOption>> GetAdminsAsync()
+    {
+        return await db.Users
+            .AsNoTracking()
+            .Where(u => u.Status == "1" && u.UserType == "Admin")
+            .OrderBy(u => u.FirstName)
+            .ThenBy(u => u.LastName)
+            .Select(u => new UserOption
+            {
+                Id = u.UserId,
+                Name = ((u.FirstName ?? "") + " " + (u.LastName ?? "")).Trim()
+            })
+            .ToListAsync();
+    }
+
+    public Task<bool> UpdateCreatedByAsync(int bookingId, int userId, BookingAccessScope scope)
+        => SetBookingFieldAsync(bookingId, nameof(BookFlightDetail.CreatedBy), userId, scope);
+
+    public Task<bool> UpdateWorkingUserAsync(int bookingId, int userId, BookingAccessScope scope)
+        => SetBookingFieldAsync(bookingId, nameof(BookFlightDetail.AssignedUser), userId, scope);
+
+    public Task<bool> UpdateQualityStatusAsync(int bookingId, int status, BookingAccessScope scope)
+    {
+        if (status is < 0 or > 2) return Task.FromResult(false);   
+        return SetBookingFieldAsync(bookingId, nameof(BookFlightDetail.QualityStatus), status, scope);
+    }
+
+    private async Task<bool> SetBookingFieldAsync(int bookingId, string propertyName, int value, BookingAccessScope scope)
+    {
+        var booking = await db.Bookings.FirstOrDefaultAsync(b => b.BookId == bookingId); 
+        if (booking == null) return false;
+
+        var prop = db.Entry(booking).Property(propertyName);
+        var clrType = Nullable.GetUnderlyingType(prop.Metadata.ClrType) ?? prop.Metadata.ClrType;
+        prop.CurrentValue = Convert.ChangeType(value, clrType);
+
+        await db.SaveChangesAsync();
+        return true;
+    }
+
 }
